@@ -45,6 +45,9 @@ app.use('/', orderRoute);
 const wishlistRoute = require('./route/wishlistRoute');
 app.use("/api/wishlist", wishlistRoute);
 
+app.get("/", (req, res) => {
+  res.send("Backend Running")
+})
 
 app.listen(PORT, () => {
     console.log(` Server running on http://localhost:${PORT}`);
