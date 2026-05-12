@@ -1,40 +1,40 @@
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Login from '../Pages/Login'
-import AuthProvider from '../Pages/AuthProvider';
-import Contact from '../Pages/contact'
-import Home from '../Pages/Home'
+import Login from './Pages/Login'
+import AuthProvider from './Pages/AuthProvider'
+import Contact from './Pages/Contact'
+import Home from './Pages/Home'
 import './App.css'
-import Layout from '../Pages/Layout'
-import Women from '../Pages/Sub-Pages/Women'
+import Layout from './Pages/Layout'
+import Women from './Pages/Sub-Pages/Women'
 import AdminLayout from './admin/AdminLayout';
 import Dashboard from './admin/Dashboard';
 import Feedback from './admin/Feedback';
 import AddBlog from './admin/AddBlog';
 import ViewBlog from './admin/ViewBlog';
-import Blogs from '../Pages/Blog';
-import BlogDetail from '../Pages/BlogDetail';
+import Blogs from './Pages/Blog';
+import BlogDetail from './Pages/BlogDetail';
 import AddCategory from './admin/AddCategory';
 import ViewCategory from './admin/ViewCategory';
 import AddProduct from './admin/AddProduct';
 import ViewProduct from './admin/ViewProduct';
-import Men from '../Pages/Sub-Pages/Men';
-import ProductDetail from '../Pages/Sub-Pages/ProductDetail';
-import UserLogin from '../Pages/UserLogin';
-import Profile from '../Pages/Profile';
-import Signup from '../Pages/Signup';
-import CartPage from '../Pages/Cart';
-import { CartProvider } from '../Pages/CartContext';
-import Checkout from '../Pages/Checkout';
-import ChangePassword from '../Pages/ChangePassword';
+import Men from './Pages/Sub-Pages/Men';
+import ProductDetail from './Pages/Sub-Pages/ProductDetail';
+import UserLogin from './Pages/UserLogin';
+import Profile from './Pages/Profile';
+import Signup from './Pages/Signup';
+import CartPage from './Pages/Cart';
+import { CartProvider } from './Pages/CartContext';
+import Checkout from './Pages/Checkout';
+import ChangePassword from './Pages/ChangePassword';
 import AdminOrder from './admin/AdminOrder';
 import AdminOrderDetail from './admin/AdminOrderDetail';
-import MyOrders from '../Pages/MyOrders';
-import OrderDetails from '../Pages/OrderDetails';
-import WishlistPage from '../Pages/Wishlist';
-import Kids from '../Pages/Sub-Pages/Kids';
-import Cosmetics from '../Pages/Sub-Pages/Cosmetics';
-import Accessories from '../Pages/Sub-Pages/Accessories';
+import MyOrders from './Pages/MyOrders';
+import OrderDetails from './Pages/OrderDetails';
+import WishlistPage from './Pages/Wishlist';
+import Kids from './Pages/Sub-Pages/Kids';
+import Cosmetics from './Pages/Sub-Pages/Cosmetics';
+import Accessories from './Pages/Sub-Pages/Accessories';
 
 function App() {
   return (

@@ -113,7 +113,7 @@
 //     )
 // }
 
-import { useAuth } from "../../Pages/AuthProvider";
+import { useAuth } from "../Pages/AuthProvider";
 import { Link, Outlet } from "react-router-dom";
 
 export default function AdminLayout() {
