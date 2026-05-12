@@ -1,0 +1,72 @@
+var rb_theme_id = Shopify.theme.theme_store_id;
+window.wishlistClubSetting = {};
+
+// Dawn Theme
+if (rb_theme_id == 887) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class:'.card__information'}
+}
+
+// Refresh
+if (rb_theme_id == 1567) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class:'.card__information'}
+}
+
+// Sense
+if (rb_theme_id == 1356) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class:'.card__information'}
+}
+
+// Trade
+if (rb_theme_id == 2699) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class:'.card__information'}
+}
+
+// Craft
+if (rb_theme_id == 1368) {
+  wishlistClubSetting = {element_class:'.card-wrapper',bis_class:'.card__information'}
+}
+
+// Spotlight
+if (rb_theme_id == 1891) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class:'.card__information'}
+}
+
+// Studio
+if (rb_theme_id == 1431) {
+  wishlistClubSetting = {element_class:'.card-wrapper',bis_class:'.card__information'}
+}
+
+// Taste
+if (rb_theme_id == 1434) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class: '.card__information'}
+}
+
+// Origin
+if (rb_theme_id == 1841) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class: '.card__information'}
+}
+
+// Ride
+if (rb_theme_id == 1500) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class: '.card__information'}
+}
+
+// Colorblock
+if (rb_theme_id == 1499) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class:'.card__information'}
+}
+
+// Publisher
+if (rb_theme_id == 1864) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class:'.card__information'}
+}
+
+// Crave
+if (rb_theme_id == 1363) {
+  wishlistClubSetting = {element_class:'.product-card-wrapper',bis_class:'.card__information'}
+}
+
+// Fabric
+if (rb_theme_id == 3622) {
+  wishlistClubSetting = {element_class:'.product-card',bis_class:'.group-block-content'}
+}

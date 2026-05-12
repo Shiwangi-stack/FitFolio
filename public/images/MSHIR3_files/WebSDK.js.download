@@ -1,0 +1,1074 @@
+/* version : 1.11.15 */
+(function (global, doc) {
+
+  var isDebugModeActive = false;
+  var razorpayListenerActive = false;
+
+  function turnOnDebug() {
+    isDebugModeActive = true;
+    consoleLogOffer18('Debug Mode - Activated');
+    return 'Debug Mode - Activated';
+  }
+
+  function turnOffDebug() {
+    isDebugModeActive = false;
+    return false;
+  }
+
+  function consoleLogOffer18(msg, obj = undefined, type = 'info') {
+    try {
+      if (!console || !console.log) return;
+
+      // overload: (msg, type)
+      if (arguments.length === 2 && typeof obj === 'string') {
+        type = obj;
+        obj = undefined;
+      }
+      // add padding for all types for better readability
+      var style =
+        type === 'warn'
+          ? 'background:#FFE4E4;color:#000;padding:2px 5px;'
+          : type === 'info'
+            ? 'background:#FFFFF0;color:#000;padding:2px 5px;'
+            : type === 'error'
+              ? 'background:#FFCDD2;color:#000;padding:2px 5px;'
+              : type === ''
+                ? 'background:#F5F5F5;color:#000;padding:2px 5px;'
+                : 'background:#F5F5F5;color:#000;padding:2px 5px;';
+
+      var prefix = 'Offer18WebSDK : ';
+      var text = typeof msg === 'string' ? msg.replace(/^%c\s*/, '') : msg;
+      if (style) {
+        if (typeof msg === 'string') {
+          obj !== undefined
+            ? console.log('%c ' + prefix + text, style, obj)
+            : console.log('%c ' + prefix + text, style);
+        } else {
+          obj !== undefined
+            ? console.log('%c ' + prefix, style, msg, obj)
+            : console.log('%c ' + prefix, style, msg);
+        }
+      } else {
+        obj !== undefined
+          ? console.log(prefix + text, obj)
+          : console.log(prefix, text);
+      }
+    } catch (e) {
+      try { console.log('Offer18WebSDK x : ', msg); } catch (_) { }
+    }
+  }
+
+  function checkForDisabledToken(disableToken) {
+    var currentURL = window.location.href;
+    var regex = new RegExp(disableToken, 'i');
+    if (regex.test(currentURL)) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  function matchRequest(conditions = []) {
+    if (!Array.isArray(conditions) || conditions.length === 0) return false;
+    let parsed;
+    try {
+      parsed = new URL(window.location.href);
+    } catch (e) {
+      if (isDebugModeActive) {
+        consoleLogOffer18("Failed to parse window.location.href with URL constructor:", e, 'error');
+      }
+      return false;
+    }
+    const referral = document.referrer || "";
+    const isMatch = (value, rule, mode) => {
+      if (mode === "contain") return value.includes(rule);
+      return value === rule;
+    };
+    return conditions.every(({ type, value, mode = "equal" }) => {
+      if (!type || !value) return false;
+      let matchResult = false;
+      switch (type) {
+        case "hostname":
+          matchResult = isMatch(parsed.host, value, mode);
+          break;
+        case "path":
+          matchResult = isMatch(parsed.pathname, value, mode);
+          break;
+        case "referral":
+          matchResult = isMatch(referral, value, mode);
+          break;
+        default:
+          consoleLogOffer18(`Unsupported matching type "${type}" detected`, null, 'warn');
+          matchResult = false;
+          break;
+      }
+      if (isDebugModeActive) {
+        consoleLogOffer18(`Checking condition: ${type} ${mode === 'contain' ? 'contains' : 'equals'} ${value}`);
+        consoleLogOffer18(`Result: ${matchResult ? 'Match' : 'No match'}`);
+      }
+      return matchResult;
+    });
+  }
+
+  function splitBase64QueryString(key, base64String, chunkSize = 500) {
+    let queryParams = [];
+    for (let i = 0; i < base64String.length; i += chunkSize) {
+      queryParams.push(`${key}[]=${encodeURIComponent(base64String.substring(i, i + chunkSize))}`);
+    }
+    return queryParams.join("&");
+  }
+
+  function checkParameterExists(queryString, parameter) {
+    queryString = queryString.slice(1);
+    const params = queryString.split('&');
+    for (const param of params) {
+      const keyValuePair = param.split('=');
+      if (keyValuePair[0] === parameter) {
+        if (keyValuePair.length === 2 && keyValuePair[1] !== "") {
+          return true;
+        } else {
+          return false;
+        }
+      }
+    }
+    return false;
+  }
+
+  function checkParamExistsKeyMapping(keyMapping, value) {
+    if (!keyMapping) {
+      return false;
+    }
+    const result = keyMapping.some(element => {
+      const colonIndex = element.indexOf(':');
+      if (colonIndex !== -1) {
+        const key = element.slice(0, colonIndex);
+        const val = element.slice(colonIndex + 1);
+        if (key === value && val.trim() !== '') {
+          return true;
+        }
+      }
+      return false;
+    });
+    return result;
+  }
+
+  function setWebCookie(key, value, expiryDays = '30', expirySeconds = '') {
+    const date = new Date();
+    if (expirySeconds != '') {
+      date.setTime(date.getTime() + (expirySeconds * 1000));
+    } else {
+      date.setTime(date.getTime() + (expiryDays * 24 * 60 * 60 * 1000));
+    }
+    let expires = "expires=" + date.toUTCString();
+    doc.cookie = key + "=" + value + ";path=/;expires=" + expires;
+  }
+
+  function setWebCookieSiteWide(cookieKey, clickIdentifier, period = '30') {
+    const days = period || 30;
+    const hostname = window.location.hostname;
+    const parts = hostname.split(".");
+    let rootDomain;
+    if (parts.length > 2) {
+      rootDomain = `.${parts.slice(-2).join(".")}`;
+    } else {
+      rootDomain = `.${hostname}`;
+    }
+    const expires = new Date();
+    expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expiresUTC = expires.toUTCString();
+    document.cookie = `${cookieKey}=${encodeURIComponent(clickIdentifier)};` +
+      `expires=${expiresUTC};` +
+      `path=/;` +
+      `domain=${rootDomain};` +
+      `SameSite=Lax`;
+    return true;
+  }
+
+  function removeCookie(key) {
+    doc.cookie = key + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  }
+
+  function getCookieData(key) {
+    var cookies = doc.cookie.split(";"),
+      cookieValue = null;
+    cookies.forEach(function (cookie) {
+      if (-1 !== cookie.indexOf(key + "=")) {
+        cookieValue = cookie.split("=")[1];
+        return false;
+      }
+    });
+    return cookieValue;
+  }
+
+  function getAllOffer18ClickCookies() {
+    const cookies = document.cookie.split(";");
+    const result = {};
+
+    cookies.forEach(cookie => {
+      const [name, value] = cookie.trim().split("=");
+      if (name && name.startsWith("offer18_click_id_")) {
+        result[name] = decodeURIComponent(value || "");
+      }
+    });
+
+    return result;
+  }
+
+  function removeAllCookies() {
+    removeCookie('offer18_click_id_global');
+    if (isDebugModeActive == true) {
+      consoleLogOffer18('Cookie Removed : offer18_click_id_global')
+    }
+    doc.cookie.split(";").forEach(cookie => {
+      var name = cookie.split("=")[0].trim();
+      if (name.startsWith('offer18_')) {
+        removeCookie(name)
+        if (isDebugModeActive == true) {
+          consoleLogOffer18('Cookie Removed : ' + name)
+        }
+      }
+    });
+    return 'All Offer18 cookies removed'
+  }
+
+  function countOffer18Cookies() {
+    let count = 0;
+    doc.cookie.split(";").forEach(cookie => {
+      var name = cookie.split("=")[0].trim();
+      if (name.startsWith('offer18_')) {
+        count++;
+      }
+    });
+    return count;
+  }
+
+  function splitString(string, index, delimiter) {
+    let array = string.split(delimiter);
+    return array[index];
+  }
+
+  function getURLParameter(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    let regex = new RegExp("[\\?&]" + name + "=([^&#]*)").exec(global.location.search);
+    return null === regex ? "" : decodeURIComponent(regex[1].replace(/\+/g, " "));
+  }
+
+  function extractAndSetCookie(click_id, configuration) {
+    let trackUserJourney = configuration.trackUserJourney;
+    let siteWideClick = configuration.siteWideClick;
+    !trackUserJourney ? trackUserJourney = false : trackUserJourney;
+    let clickIdentifier = getURLParameter(click_id);
+    const redirectMode = getURLParameter("mode");
+    if (redirectMode === "crossDomain") {
+      const encodedConfig = getURLParameter("config");
+      let decodedConfig;
+      try {
+        if (isDebugModeActive == true) {
+          consoleLogOffer18('Cross Domain Tracking enabled');
+        }
+        decodedConfig = JSON.parse(decodeURIComponent(encodedConfig));
+      } catch (error) {
+        consoleLogOffer18("Failed to parse cross-domain configuration:", error, 'error');
+        return;
+      }
+      registerConversion(decodedConfig);
+      return;
+    }
+    let campaignId = splitString(clickIdentifier, 1, '-');
+    let cookieKey = "offer18_click_id_" + campaignId;
+    let period = 30;
+    if (trackUserJourney) {
+      if (isDebugModeActive === true) {
+        consoleLogOffer18("Tracking user journey triggered");
+      }
+      const currentLocation = window.location.href.substring(0, 300);
+      const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      const journeyKey = "_journey";
+
+      let journeyArray = [];
+      try {
+        const storedData = localStorage.getItem(journeyKey);
+        if (storedData) {
+          journeyArray = JSON.parse(atob(storedData));
+          if (isDebugModeActive === true) {
+            consoleLogOffer18("Retrieved journey data:", journeyArray, 'info');
+          }
+        }
+      } catch (error) {
+        if (isDebugModeActive === true) {
+          consoleLogOffer18("Error parsing stored journey data:", error.message, 'error');
+        }
+        journeyArray = [];
+      }
+      if (journeyArray.length === 0 || journeyArray[journeyArray.length - 1].location !== currentLocation) {
+        journeyArray.push({ location: currentLocation, timestamp });
+      }
+      while (journeyArray.length > 15) {
+        journeyArray.shift();
+      }
+      try {
+        localStorage.setItem(journeyKey, btoa(JSON.stringify(journeyArray)));
+        if (isDebugModeActive === true) {
+          consoleLogOffer18("Updated journey stored:", journeyArray, 'info');
+        }
+      } catch (error) {
+        if (isDebugModeActive === true) {
+          consoleLogOffer18("Error saving journey data:", error.message, 'error');
+        }
+      }
+    }
+
+    if (!clickIdentifier && (countOffer18Cookies() == 0 || isDebugModeActive == true) && !trackUserJourney) {
+      consoleLogOffer18('ClickID not found', null, 'info');
+      return 'failed';
+    }
+    if (clickIdentifier) {
+      try {
+        if (siteWideClick) {
+          setWebCookieSiteWide(cookieKey, clickIdentifier, period);
+          setWebCookieSiteWide('offer18_click_id_global', clickIdentifier, period);
+          if (isDebugModeActive === true) {
+            consoleLogOffer18('Cookie set as : ' + cookieKey);
+            consoleLogOffer18('Key used for ClickID : ' + click_id);
+            consoleLogOffer18('Location : ' + window.location.href);
+            consoleLogOffer18('Global Cookie : offer18_click_id_global');
+          }
+        } else {
+          setWebCookie(cookieKey, clickIdentifier, period);
+          setWebCookie('offer18_click_id_global', clickIdentifier, period);
+          if (isDebugModeActive === true) {
+            consoleLogOffer18('Cookie set as : ' + cookieKey);
+            consoleLogOffer18('Key used for ClickID : ' + click_id);
+            consoleLogOffer18('Location : ' + window.location.href);
+            consoleLogOffer18('Global Cookie : offer18_click_id_global');
+          }
+        }
+        return 'success';
+      } catch (error) {
+        if (isDebugModeActive === true) {
+          consoleLogOffer18("Error setting cookies:", error.message, 'error');
+        }
+        return 'failed';
+      }
+    }
+  }
+
+  function checkMissingURLParameters(url) {
+    const urlParts = url.split('?');
+    if (urlParts.length < 2) {
+      return {
+        isValid: false,
+        missingParams: ['m', 'o', 'a'],
+      };
+    }
+    const queryString = urlParts[1];
+    const params = new URLSearchParams(queryString);
+    const requiredParams = ['m', 'o', 'a'];
+    const missingParams = [];
+    for (const param of requiredParams) {
+      const paramValue = params.get(param);
+      if (!paramValue || paramValue.trim() === '') {
+        missingParams.push(param);
+      }
+    }
+    if (missingParams.length > 0) {
+      return {
+        isValid: false,
+        missingParams: missingParams,
+      };
+    }
+    return {
+      isValid: true,
+    };
+  }
+
+  function pregReplace(pattern, replacement, subject) {
+    var regex = new RegExp(pattern, "g");
+    return subject.replace(regex, replacement);
+  }
+
+
+
+
+
+
+
+
+
+  function registerConversion(configuration) {
+
+    if (checkForDisabledToken("disableOffer18ConversionWebSDK")) {
+      if (isDebugModeActive == true) {
+        consoleLogOffer18(`SDK is disabled due to the presence of a disable flag in the URL`, null, 'warn');
+      }
+      return false;
+    }
+    if (isDebugModeActive == true) {
+      if (configuration.accountId || configuration.offerId) {
+        consoleLogOffer18(`Domain: ${configuration.domain || 'N/A'}, Account ID: ${configuration.accountId || 'N/A'}, Offer ID: ${configuration.offerId || 'N/A'}, Postback Type: ${configuration.postbackType || 'N/A'}`);
+      }
+    }
+
+    const isCrossDomainEnabled = configuration.isCrossDomainEnabled;
+    const conversionRedirectUrl = configuration.conversionRedirectUrl;
+    if (isCrossDomainEnabled) {
+      const excludedKeys = ["isCrossDomainEnabled", "conversionRedirectUrl"];
+      excludedKeys.forEach(key => delete configuration[key]);
+      const encodedConfig = encodeURIComponent(JSON.stringify(configuration));
+      const finalRedirectUrl =
+        `${conversionRedirectUrl}?config=${encodedConfig}&mode=crossDomain`;
+      window.location.href = finalRedirectUrl;
+      return;
+    }
+
+
+    const domain = configuration.domain;
+    const accountId = configuration.accountId;
+    const campaignId = configuration.offerId;
+    var auth_token = configuration.auth_token;
+    var coupon = configuration.coupon;
+    var postbackType = configuration.postbackType;
+    !postbackType ? (postbackType = "iframe") : postbackType;
+    var isGlobalPixel = configuration.isGlobalPixel;
+    !isGlobalPixel ? (isGlobalPixel = false) : isGlobalPixel;
+    var iGamingCampaign = configuration.iGamingCampaign;
+    !iGamingCampaign ? (iGamingCampaign = false) : iGamingCampaign;
+    var clickIdData = configuration.clickIdData; // format -> getAllOffer18ClickCookies();
+    var allowMultiConversion = configuration.allowMultiConversion;
+    !allowMultiConversion ? (allowMultiConversion = false) : allowMultiConversion;
+    const conversionData = configuration.conversionData;
+    const userActivityData = configuration.userActivityData;
+    if (isDebugModeActive == true) {
+      if (campaignId && (!isGlobalPixel || (iGamingCampaign && campaignId))) {
+        consoleLogOffer18("Postback OfferID : " + campaignId);
+      }
+      if (allowMultiConversion == true) {
+        consoleLogOffer18("Multi Conversion : Enabled");
+      }
+    }
+
+    if (!domain || !accountId || (!campaignId && !isGlobalPixel && !iGamingCampaign)) {
+      const missingConfig = !domain ? "domain" : !accountId ? "AccountID" : "OfferID";
+      consoleLogOffer18(`${missingConfig} is not configured`, null, 'error');
+      return "failed";
+    }
+
+    var postbackURL = `https://${domain}/p?m=${accountId}`;
+    var typeCode = "";
+    if (postbackType === "pixel" || postbackType === "ajax") {
+      typeCode = "i";
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("Postback type detected : " + postbackType);
+      }
+    } else if (postbackType === "iframe") {
+      typeCode = "f";
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("Postback type detected : " + postbackType);
+      }
+    }
+
+    if (campaignId && (!isGlobalPixel || (iGamingCampaign && campaignId))) {
+      postbackURL = `${postbackURL}&o=${campaignId}`;
+    }
+
+    if (typeCode) {
+      postbackURL = `${postbackURL}&t=${typeCode}`;
+    }
+
+    if (isGlobalPixel == true) {
+      postbackURL = `${postbackURL}&gb=1`;
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("Global Postback : Enabled");
+      }
+    }
+
+    if (iGamingCampaign == true) {
+      postbackURL = `${postbackURL}&ig=1`;
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("iGaming Postback : Enabled");
+      }
+    }
+
+    if (auth_token) {
+      auth_token = pregReplace("[^0-9a-zA-Z_.$#-]", "", auth_token);
+      postbackURL += `&auth_token=${auth_token}`;
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("auth_token detected : " + auth_token);
+      }
+    }
+
+    if (coupon) {
+      coupon = pregReplace("[^0-9a-zA-Z_.$#-,]", "", coupon);
+      postbackURL += `&coupon=${coupon}`;
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("Coupon detected : " + coupon);
+      }
+    }
+
+    if (campaignId) {
+      var cName = `offer18_click_id_${campaignId}`;
+    }
+
+
+    var customClickId = clickIdData ? clickIdData[cName] || (isGlobalPixel == true || iGamingCampaign == true ? clickIdData["offer18_click_id_global"] : null) : null;
+    if (customClickId && customClickId.length > 20) {
+      customClickId = customClickId;
+    } else {
+      customClickId = null;
+    }
+
+    if (isDebugModeActive == true) {
+      consoleLogOffer18("Click ID Data provided : ", clickIdData);
+      consoleLogOffer18("Constructed cookie name for click ID: ", cName);
+      consoleLogOffer18("Custom Click ID from clickIdData: ", customClickId);
+    }
+
+    var offer18ClickId = customClickId
+      ? customClickId
+      : getCookieData(cName)
+        ? getCookieData(cName)
+        : (isGlobalPixel == true || iGamingCampaign == true)
+          ? getCookieData("offer18_click_id_global")
+          : "";
+
+    if (offer18ClickId) {
+      offer18ClickId = pregReplace("[^0-9A-Z-]", "", offer18ClickId);
+      postbackURL += `&tid=${offer18ClickId}`;
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("ClickID detected : " + offer18ClickId);
+      }
+    } else {
+      consoleLogOffer18("ClickID not detected", null, 'info');
+      return "failed";
+    }
+
+    var paramsWithValues = [];
+    if (conversionData) {
+      ["event", "sale", "payout", "currency", "adv_sub1", "adv_sub2", "adv_sub3", "adv_sub4", "adv_sub5"].forEach((param) => {
+        if (conversionData[param]) {
+          let value = conversionData[param];
+          if (value.indexOf("#") !== -1) {
+            value = value.replace(/#/g, "%23");
+          }
+          if (isDebugModeActive == true) {
+            consoleLogOffer18("Detected Parameter `" + param + "` : " + value);
+          }
+          paramsWithValues.push(param + "=" + value);
+        }
+      });
+    }
+
+    const userJourney = localStorage.getItem("_journey");
+    if (userJourney) {
+      let userJourneyString = splitBase64QueryString("userjourney", userJourney, 400);
+      paramsWithValues.push(`${userJourneyString}`);
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("Detected user journey:", userJourneyString, 'info');
+      }
+    }
+
+    if (iGamingCampaign == true) {
+      if (userActivityData) {
+        Object.keys(userActivityData).forEach((key) => {
+          if (userActivityData[key]) {
+            let value = String(userActivityData[key]);
+            if (value.indexOf("#") !== -1) {
+              value = value.replace(/#/g, "%23");
+            }
+            if (isDebugModeActive == true) {
+              consoleLogOffer18("Detected User Activity Parameter `" + key + "` : " + value);
+            }
+            paramsWithValues.push(key + "=" + value);
+          }
+        });
+      }
+    }
+
+    if (paramsWithValues) {
+      var queryString = paramsWithValues.join("&");
+    }
+    if (isDebugModeActive == true) {
+      consoleLogOffer18("Value parameters in postback : " + queryString);
+    }
+    if (queryString !== "") {
+      postbackURL += "&" + queryString;
+    }
+
+    if (isDebugModeActive == true) {
+      consoleLogOffer18("Final postback URL : " + postbackURL);
+      consoleLogOffer18("readyState:", doc.readyState, 'info');
+    }
+    function runWhenReady(fn) {
+      if (doc.readyState === "complete" || doc.readyState === "interactive") {
+        fn();
+      } else {
+        doc.addEventListener("DOMContentLoaded", fn);
+      }
+    }
+
+    if (postbackURL) {
+      if (postbackType === "pixel") {
+        try {
+          runWhenReady(function () {
+            var pixel = doc.createElement("img");
+            pixel.setAttribute("src", postbackURL);
+            pixel.width = "0";
+            pixel.height = "0";
+            doc.body.appendChild(pixel);
+            if (isDebugModeActive == true) {
+              consoleLogOffer18("pixel triggered : " + `<img src="${postbackURL}" width="0" height="0">`, null, 'info');
+            }
+          });
+        } catch (error) {
+          consoleLogOffer18("An error occurred:", error, 'error');
+        }
+      } else if (postbackType === "iframe") {
+        try {
+          runWhenReady(function () {
+            var frame = doc.createElement("iframe");
+            frame.setAttribute("src", postbackURL);
+            frame.width = "0";
+            frame.height = "0";
+            doc.body.appendChild(frame);
+            if (isDebugModeActive == true) {
+              consoleLogOffer18("iframe triggered : " + `<iframe src="${postbackURL}" width="0" height="0"></iframe>`, null, 'info');
+            }
+          });
+        } catch (error) {
+          consoleLogOffer18("An error occurred:", error, 'error');
+        }
+      } else if (postbackType === "ajax") {
+        try {
+          fetch(postbackURL, { method: "GET" }).then((response) => {
+            if (isDebugModeActive == true) {
+              consoleLogOffer18("ajax request : " + postbackURL);
+              consoleLogOffer18("Status Code:", response.status, 'info');
+            }
+          });
+        } catch (error) {
+          consoleLogOffer18("Error:", error, 'error');
+        }
+      } else {
+        consoleLogOffer18("Invalid postback type configured", null, 'error');
+        return "failed";
+      }
+    }
+
+    if (allowMultiConversion == false) {
+      removeCookie(cName);
+      removeCookie("offer18_click_id_global");
+      if (isDebugModeActive == true) {
+        consoleLogOffer18("cookie `" + cName + "` : removed (restricted multi-conversion)");
+        consoleLogOffer18("cookie `offer18_click_id_global` : removed (restricted multi-conversion)");
+      }
+    }
+    return "success";
+  }
+
+  function registerClick(configuration) {
+
+    if (checkForDisabledToken("disableOffer18ClickWebSDK")) {
+      if (isDebugModeActive == true) {
+        consoleLogOffer18(`SDK is disabled due to the presence of a disable flag in the URL`, null, 'warn');
+      }
+      return false;
+    }
+    if (isDebugModeActive == true) {
+      if (configuration.accountId || configuration.offerId) {
+        consoleLogOffer18(`Domain: ${configuration.domain || 'N/A'}, Account ID: ${configuration.accountId || 'N/A'}, Offer ID: ${configuration.offerId || 'N/A'}, Postback Type: ${configuration.postbackType || 'N/A'}`);
+      }
+    }
+
+    var trackingURL = configuration.trackingURL;
+    const parsedTrackingURL = new URL(trackingURL);
+    if (parsedTrackingURL.pathname == '/c' && (checkParameterExists(parsedTrackingURL.search, 'o') || checkParamExistsKeyMapping(configuration.keymapping, 'o')) && (checkParameterExists(parsedTrackingURL.search, 'm') || checkParamExistsKeyMapping(configuration.keymapping, 'm')) && (checkParameterExists(parsedTrackingURL.search, 'a') || checkParamExistsKeyMapping(configuration.keymapping, 'a'))) {
+      if (isDebugModeActive == true) {
+        consoleLogOffer18(`Tracking URL : ${trackingURL}`);
+      }
+      var parameterData = [];
+      if (configuration.keymapping) {
+        const clickParameters = configuration.keymapping;
+        clickParameters.map((element) => {
+          var tempObject = {
+            'o18Parameter': splitString(element, 0, ":"),
+            'nativeParameter': splitString(element, 1, ":")
+          }
+          parameterData.push(tempObject);
+        })
+      }
+      var valueParameters = [];
+      if (parameterData) {
+        parameterData.map((paramObj) => {
+          nativeParamvalue = getURLParameter(paramObj.nativeParameter);
+          if (nativeParamvalue) {
+            valueParameters.push(`${paramObj.o18Parameter}=${nativeParamvalue}`)
+            if (isDebugModeActive == true) {
+              consoleLogOffer18('configured `' + paramObj.o18Parameter + '` : `' + nativeParamvalue + '`');
+            }
+          }
+          else {
+            consoleLogOffer18(`Parameter "${paramObj.o18Parameter}" : Value does not exist in URL`, null, 'warn');
+          }
+        })
+      }
+      if (trackingURL) {
+        var queryString = valueParameters.join('&')
+        !queryString ? queryString = null : queryString;
+        if (isDebugModeActive == true) {
+          consoleLogOffer18('Value parameters : ' + queryString)
+        }
+        if (queryString && queryString !== '') {
+          trackingURL = trackingURL + '&' + queryString
+        }
+        trackingURL = trackingURL + '&callvia=WebSDK';
+        if (isDebugModeActive == true) {
+          consoleLogOffer18('Final Tracking URL : ' + trackingURL)
+        }
+        const finalTrackingURLValidate = checkMissingURLParameters(trackingURL);
+        if (finalTrackingURLValidate.isValid) {
+          fetch(trackingURL).then(response => response.json()).then(data => {
+            let clickIdentifier = data.tid;
+            let period = data.click_expiry;
+            !period ? period = '2592000' : period;
+            let campaignId = splitString(clickIdentifier, 1, '-');
+            let cookieKey = "offer18_click_id_" + campaignId;
+            if (clickIdentifier) {
+              setWebCookie(cookieKey, clickIdentifier, '', period);
+              setWebCookie('offer18_click_id_global', clickIdentifier, '', period);
+              if (isDebugModeActive == true) {
+                consoleLogOffer18('Cookie set as : ' + cookieKey);
+                consoleLogOffer18('Global Cookie : offer18_click_id_global');
+              }
+              return 'success';
+            }
+          }).catch(error => {
+            consoleLogOffer18('Error:', error, 'error');
+            return 'failed';
+          });
+        }
+        else {
+          if (isDebugModeActive == true) {
+            consoleLogOffer18('Missing or empty parameters : ' + finalTrackingURLValidate.missingParams, null, 'warn');
+          }
+        }
+      } else {
+        consoleLogOffer18('tracking URL is not detected', null, 'warn');
+        return 'failed';
+      }
+      return 'success';
+    }
+    else {
+      consoleLogOffer18('invalid tracking URL detected', null, 'warn');
+      return 'failed';
+    }
+  }
+
+  function registerImpression(configuration) {
+
+    if (checkForDisabledToken("disableOffer18ImpressionWebSDK")) {
+      if (isDebugModeActive == true) {
+        consoleLogOffer18(`SDK is disabled due to the presence of a disable flag in the URL`, null, 'warn');
+      }
+      return false;
+    }
+    if (isDebugModeActive == true) {
+      if (configuration.accountId || configuration.offerId) {
+        consoleLogOffer18(`Domain: ${configuration.domain || 'N/A'}, Account ID: ${configuration.accountId || 'N/A'}, Offer ID: ${configuration.offerId || 'N/A'}, Postback Type: ${configuration.postbackType || 'N/A'}`);
+      }
+    }
+
+    var impressionURL = configuration.impressionURL;
+    const parsedTrackingURL = new URL(impressionURL);
+    if (parsedTrackingURL.pathname == '/i' && (checkParameterExists(parsedTrackingURL.search, 'o') || checkParamExistsKeyMapping(configuration.keymapping, 'o')) && (checkParameterExists(parsedTrackingURL.search, 'm') || checkParamExistsKeyMapping(configuration.keymapping, 'm')) && (checkParameterExists(parsedTrackingURL.search, 'a') || checkParamExistsKeyMapping(configuration.keymapping, 'a'))) {
+      if (isDebugModeActive == true) {
+        consoleLogOffer18(`Tracking URL : ${impressionURL}`)
+      }
+      var parameterData = [];
+      if (configuration.keymapping) {
+        const clickParameters = configuration.keymapping;
+        clickParameters.map((element) => {
+          var tempObject = {
+            'o18Parameter': splitString(element, 0, ":"),
+            'nativeParameter': splitString(element, 1, ":")
+          }
+          parameterData.push(tempObject);
+        })
+      }
+      var valueParameters = [];
+      if (parameterData) {
+        parameterData.map((paramObj) => {
+          nativeParamvalue = getURLParameter(paramObj.nativeParameter);
+          if (nativeParamvalue) {
+            valueParameters.push(`${paramObj.o18Parameter}=${nativeParamvalue}`)
+            if (isDebugModeActive == true) {
+              consoleLogOffer18('configured `' + paramObj.o18Parameter + '` : `' + nativeParamvalue + '`');
+            }
+          }
+          else {
+            consoleLogOffer18(`Parameter "${paramObj.o18Parameter}" : Value does not exist in URL(${paramObj.nativeParameter})`, null, 'warn');
+          }
+        })
+      }
+      if (impressionURL) {
+        var queryString = valueParameters.join('&')
+        !queryString ? queryString = null : queryString;
+        if (isDebugModeActive == true) {
+          consoleLogOffer18('Value parameters : ' + queryString);
+        }
+        if (queryString && queryString !== '') {
+          impressionURL = impressionURL + '&' + queryString
+        }
+        impressionURL = impressionURL + '&callvia=WebSDK';
+        if (isDebugModeActive == true) {
+          consoleLogOffer18('Final Impression URL : ' + impressionURL);
+        }
+        const finalImpressionURLValidate = checkMissingURLParameters(impressionURL);
+        if (finalImpressionURLValidate.isValid) {
+          fetch(impressionURL).then(response => response.json()).then(data => {
+            let impressionIdentifier = data.iid;
+            let period = data.impression_expiry;
+            !period ? period = '2592000' : period;
+            let campaignId = splitString(impressionIdentifier, 0, '-');
+            let cookieKey = "offer18_impression_id_" + campaignId;
+            if (impressionIdentifier) {
+              setWebCookie(cookieKey, impressionIdentifier, '', period);
+              setWebCookie('offer18_impression_id_global', impressionIdentifier, '', period);
+              if (isDebugModeActive == true) {
+                consoleLogOffer18('Cookie set as : ' + cookieKey);
+                consoleLogOffer18('Global Cookie : offer18_click_id_global');
+              }
+              return 'success';
+            }
+          }).catch(error => {
+            consoleLogOffer18('Error:', error, 'error');
+            return 'failed';
+          });
+        }
+        else {
+          if (isDebugModeActive == true) {
+            consoleLogOffer18('Missing or empty parameters : ' + finalImpressionURLValidate.missingParams, null, 'warn');
+          }
+        }
+      } else {
+        consoleLogOffer18('impression URL is not detected', null, 'warn');
+        return 'failed';
+      }
+      return 'success';
+    }
+    else {
+      consoleLogOffer18('invalid impression URL detected', null, 'warn');
+      return 'failed';
+    }
+  }
+
+  function initSDK(configuration) {
+    if (!configuration) {
+      consoleLogOffer18(`SDK initialization failed: configuration object is missing`, null, 'warn');
+      return 'failed';
+    }
+    if (isDebugModeActive == true) {
+      if (configuration.accountId || configuration.offerId) {
+        consoleLogOffer18(`Domain: ${configuration.domain || 'N/A'}, Account ID: ${configuration.accountId || 'N/A'}, Offer ID: ${configuration.offerId || 'N/A'}, Postback Type: ${configuration.postbackType || 'N/A'}`);
+      }
+    }
+
+
+    var automatedTrigger = configuration.automatedTrigger;
+    if (automatedTrigger !== true) {
+      if (isDebugModeActive) {
+        consoleLogOffer18(`Automated tracking disabled`, null, 'warn');
+      }
+      return 'failed';
+    }
+    var operations = configuration.operations;
+    if (!Array.isArray(operations) || operations.length === 0) {
+      consoleLogOffer18(`No operations configured for automated tracking`, null, 'warn');
+      return 'failed';
+    }
+    if (isDebugModeActive) {
+      consoleLogOffer18(`SDK Automated Tracking Initialized`);
+      consoleLogOffer18(`Operations Count: ${operations.length}`);
+    }
+    operations.forEach((operation) => {
+      let matchFlag = matchRequest(operation.triggerConditions);
+      if (isDebugModeActive) {
+        consoleLogOffer18(`Checking Trigger Match for: ${operation.triggerFunction}, Match Flag: ${matchFlag}`);
+      }
+      if (!matchFlag) {
+        if (isDebugModeActive) {
+          consoleLogOffer18(`Trigger not matched &rarr; Skipping: ${operation.triggerFunction}`, null, 'warn');
+        }
+        return;
+      }
+      if (operation.triggerFunction === 'initializeConversion' || operation.triggerFunction === 'initializeUrlParam') {
+        let initConfiguration = operation.triggerConfig.configuration ? operation.triggerConfig.configuration : {};
+        extractAndSetCookie(operation.triggerConfig.clickIdParameter, initConfiguration);
+        if (isDebugModeActive) {
+          operation.triggerFunction == 'initializeConversion' ? consoleLogOffer18(`Executed: initializeConversion`) : consoleLogOffer18(`Executed: initializeUrlParam`);
+        }
+      }
+      else if (operation.triggerFunction === 'trackClick') {
+        registerClick(operation.triggerConfig);
+        if (isDebugModeActive) {
+          consoleLogOffer18(`Executed: trackClick`);
+        }
+      }
+      else if (operation.triggerFunction === 'trackImpression') {
+        registerImpression(operation.triggerConfig);
+        if (isDebugModeActive) {
+          consoleLogOffer18(`Executed: trackImpression`);
+        }
+      }
+      else if (operation.triggerFunction === 'trackConversion') {
+        registerConversion(operation.triggerConfig);
+        if (isDebugModeActive) {
+          consoleLogOffer18(`Executed: trackConversion`);
+        }
+      }
+      else {
+        consoleLogOffer18(`Unknown trigger function: ${operation.triggerFunction}`, null, 'warn');
+      }
+    });
+    return 'success';
+  }
+
+
+  function shopifyRazorpayMagicListenEvents() {
+    if (isDebugModeActive) {
+      consoleLogOffer18("Activating Shopify Razorpay Magic Event Listener");
+      if (razorpayListenerActive) consoleLogOffer18("Razorpay Magic Event Listener is already active, skipping re-activation");
+    }
+    if (razorpayListenerActive) return "success";
+
+    const MAGIC_EVENT_TYPES = ["event", "customevent", "track", "merchantevent"];
+    const ALLOWED_ORIGINS = [
+      "https://checkout.razorpay.com",
+      "https://api.razorpay.com"
+    ];
+    function parseJSON(data) {
+      if (typeof data !== "string") return data;
+      try { return JSON.parse(data); }
+      catch { return null; }
+    }
+    function forwardMagicEvent(topic, payload) {
+      if (window.Shopify?.analytics?.publish) {
+        window.Shopify.analytics.publish("razorpay_magic_event", {
+          topic: topic,
+          data: payload
+        });
+        if (isDebugModeActive) consoleLogOffer18("Razorpay Magic Event Forwarded:", { topic: topic, payload: payload });
+      }
+    }
+    function handleMessage(e) {
+      if (!ALLOWED_ORIGINS.includes(e.origin)) return;
+      const msg = parseJSON(e.data);
+      if (!msg || typeof msg !== "object" || Array.isArray(msg)) return;
+      if (!msg.event || !MAGIC_EVENT_TYPES.includes(msg.event)) return;
+      const payload = parseJSON(msg.data);
+      if (!payload) return;
+      if (isDebugModeActive) {
+        consoleLogOffer18("Razorpay Magic Event Received:", payload);
+      }
+      const offer18Cookies = getAllOffer18ClickCookies();
+
+      try {
+        if (payload.data?.event) {
+          payload.data.offer18_click_ids = offer18Cookies;
+          forwardMagicEvent(payload.data.event, payload.data);
+          return;
+        }
+        if (payload.event) {
+          payload.data = payload.data || {};
+          payload.data.offer18_click_ids = offer18Cookies;
+          forwardMagicEvent(payload.event, payload.data);
+        }
+      } catch (err) {
+        consoleLogOffer18("Magic event parse error", err, 'warn');
+      }
+    }
+    window.addEventListener("message", handleMessage, true);
+    if (isDebugModeActive) {
+      consoleLogOffer18("Razorpay Magic Event Listener Activated");
+    }
+    razorpayListenerActive = true;
+    return "success";
+  }
+
+
+
+
+
+
+  var Offer18WebSDK = function () {
+
+    function Offer18WebSDK() {
+      turnOffDebug();
+    }
+
+    Offer18WebSDK.prototype.init = function (configuration = {}) {
+      return initSDK(configuration);
+    }
+
+    Offer18WebSDK.prototype.initializeConversion = function (click_id = 'aff_click_id', configuration = {}) {
+      return extractAndSetCookie(click_id, configuration);
+    };
+
+    Offer18WebSDK.prototype.initializeUrlParam = function (click_id = 'aff_click_id', configuration = {}) {
+      return extractAndSetCookie(click_id, configuration);
+    };
+
+    Offer18WebSDK.prototype.trackClick = function (configuration) {
+      return registerClick(configuration);
+    };
+
+    Offer18WebSDK.prototype.trackImpression = function (configuration) {
+      return registerImpression(configuration);
+    };
+
+    Offer18WebSDK.prototype.trackConversion = function (configuration) {
+
+      return registerConversion(configuration);
+    };
+
+    Offer18WebSDK.prototype.trackConversionShopify = function (configuration) {
+      var event = configuration.shopifyEvent;
+      var discountString;
+      configuration.conversionData = configuration.conversionData || {};
+      if (event.name == 'payment_successful' || event.name == 'PurchaseSR' || event.name == 'custom') {
+        configuration.conversionData.sale = `${event.customData.value}`;
+        configuration.conversionData.adv_sub5 = `${event.customData.transaction_id}`;
+        if (event.customData.currency) { configuration.conversionData.currency = event.customData.currency; }
+        if (event.customData.coupon) { discountString = event.customData.coupon; } else { discountString = ''; }
+      } else if (event.name == 'gokwik') {
+        configuration.conversionData.sale = `${event.customData.total_price}`;
+        configuration.conversionData.adv_sub5 = `${event.customData.order_name}`;
+      } else {
+        configuration.conversionData.sale = `${event.data.checkout.totalPrice.amount}`;
+        configuration.conversionData.adv_sub5 = `${event.data.checkout.order.id}`;
+        configuration.conversionData.currency = event.data.checkout.currencyCode;
+        var allDiscountCodes = event.data.checkout.discountApplications.map((discount) => { if (discount.type === 'DISCOUNT_CODE') { return discount; } });
+        if (allDiscountCodes.length > 10) { discountString = ''; } else { discountString = allDiscountCodes.map((item) => item.title).join(','); }
+      }
+      configuration.coupon = discountString;
+
+      return registerConversion(configuration);
+    };
+
+    Offer18WebSDK.prototype.activateDebugMode = function () {
+      return turnOnDebug();
+    }
+
+    Offer18WebSDK.prototype.clearCookies = function () {
+      return removeAllCookies();
+    };
+
+    Offer18WebSDK.prototype.shopifyRazorpayMagicListenEvents = function () {
+      return shopifyRazorpayMagicListenEvents();
+    }
+
+    return Offer18WebSDK;
+  }();
+
+  global.Offer18WebSDK = new Offer18WebSDK();
+
+})(window, window.document);

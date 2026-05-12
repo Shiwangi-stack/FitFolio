@@ -1,0 +1,2563 @@
+document.addEventListener("DOMContentLoaded", function () {
+  bindCustomEvents(); // bind on initial page load
+  observeDOMChanges();
+
+});
+
+document.addEventListener("shopify:section:load", () => {
+  console.log("shopify:section:load — re-binding");
+  bindCustomEvents();
+});
+
+function bindCustomEvents() {
+  var clickpostForm = document.querySelector(".clickpost-edd__form");
+  var submitButton = document.querySelector(".clickpost-edd__submit-button");
+  const inputElementEnter = clickpostForm?.querySelector('input[name="drop_pincode"]');
+
+  if (!submitButton || !clickpostForm || !inputElementEnter) {
+    console.warn("Required elements not found, skipping event binding.");
+    return;
+  }
+
+  submitButton.removeEventListener("click", handleClick);
+  inputElementEnter.removeEventListener("keyup", handleKeyUp);
+
+  submitButton.addEventListener("click", handleClick);
+  inputElementEnter.addEventListener("keyup", handleKeyUp);
+}
+
+function handleClick(event) {
+  if (window.isproductAvailable == 'false') {
+    const responseFail = document.getElementById("response-error");
+    const responseSuccess = document.getElementById("response-success");
+    responseFail.style.display = "block";
+    responseSuccess.style.display = "none";
+    responseFail.innerHTML = `out of stock`;
+  } else {
+    event.preventDefault();
+    fetchEdd();
+  }
+}
+
+function handleKeyUp(e) {
+  if (e.key === "Enter" || e.keyCode === 13) {
+    if (window.isproductAvailable == 'false') {
+      const responseFail = document.getElementById("response-error");
+      const responseSuccess = document.getElementById("response-success");
+      responseFail.style.display = "block";
+      responseSuccess.style.display = "none";
+      responseFail.innerHTML = `out of stock`;
+    } else {
+      e.preventDefault();
+      fetchEdd();
+    }
+  }
+}
+
+function setupMutationObserver() {
+  const productSection = document.querySelector('[data-section]'); // general Shopify section marker
+
+  if (!productSection) {
+    console.warn("No product section found for MutationObserver.");
+    return;
+  }
+
+  const observer = new MutationObserver((mutationsList) => {
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'childList' || mutation.type === 'subtree') {
+        // Re-bind every time DOM changes inside product section
+        bindCustomEvents();
+      }
+    }
+  });
+
+  observer.observe(productSection, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function observeDOMChanges() {
+  const observer = new MutationObserver(() => {
+    const btn = document.querySelector(".clickpost-edd__submit-button");
+    if (btn && !btn.dataset.bound) {
+      bindCustomEvents();
+    }
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+function getRelativeEDDText(deliveryDate, currentDate) {
+  const oneDay = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round(
+    (deliveryDate.setHours(0,0,0,0) - currentDate.setHours(0,0,0,0)) / oneDay
+  );
+
+  if (diffDays === 1) {
+    return "Tomorrow";
+  } else if (diffDays === 2) {
+    return "Day after Tomorrow";
+  } else {
+    // fallback to formatted date
+    return (
+      deliveryDate.getDate() +
+      "<sup>" + nth(deliveryDate.getDate()) + "</sup> " +
+      monthMap[deliveryDate.getMonth()]
+    );
+  }
+}
+
+var clickpostForm = document.querySelector(".clickpost-edd__form");
+var submitButton = document.querySelector(".clickpost-edd__submit-button");
+var responseEddText = document.getElementById("response-edd-text").innerHTML;
+var responseCodText = document.getElementById("response-cod-text").innerHTML;
+var month = clickpostForm.querySelector('input[name="month"]').value;
+var dateFormat = clickpostForm.querySelector('input[name="date_format"]').value;
+var cutoffTime = clickpostForm.querySelector('input[name="cutoff_time"]') ? clickpostForm.querySelector('input[name="cutoff_time"]').value : '24';
+var unservicableText = clickpostForm.querySelector('input[name="unservicable_text"]') ? clickpostForm.querySelector('input[name="unservicable_text"]').value : 'Pincode not servicable';
+var method = clickpostForm.querySelector('input[name="method"]').value;
+var defaultVariant = clickpostForm.querySelector('input[name="default_variant"]').value;
+var ezedd = clickpostForm.querySelector('input[name="ezedd"]') ? clickpostForm.querySelector('input[name="ezedd"]').value : false;
+var vinculum = clickpostForm.querySelector('input[name="vinculum"]') ? clickpostForm.querySelector('input[name="vinculum"]').value : false;
+var vinculumChannelCode = clickpostForm.querySelector('input[name="vinculum_channel_code"]') ? clickpostForm.querySelector('input[name="vinculum_channel_code"]').value : "";
+var increff = clickpostForm.querySelector('input[name="increff"]') ? clickpostForm.querySelector('input[name="increff"]').value : false;
+var unicommerce = clickpostForm.querySelector('input[name="unicommerce"]') ? clickpostForm.querySelector('input[name="unicommerce"]').value : false;
+var wmsClickpostIntegration = clickpostForm.querySelector('input[name="wms_clickpost_integration"]') ? clickpostForm.querySelector('input[name="wms_clickpost_integration"]').value : "";
+var clickpostIntegration = clickpostForm.querySelector('input[name="clickpost_integration"]') ? clickpostForm.querySelector('input[name="clickpost_integration"]').value : false;
+var shopName = clickpostForm.querySelector('input[name="shop_name"]').value;
+var clickpostShopDomain = clickpostForm.querySelector('input[name="shop_url"]').value;
+var productTitle = clickpostForm.querySelector('input[name="product_title"]').value;
+var gaConfigId = clickpostForm.querySelector('input[name="ga_config_id"]').value;
+var maxDateAdditionalText = clickpostForm.querySelector('input[name="max_date_additional_text"]') 
+    ? (clickpostForm.querySelector('input[name="max_date_additional_text"]').value.trim() ? 
+        clickpostForm.querySelector('input[name="max_date_additional_text"]').value : ' ') 
+    : ' ';
+var enableVariantFiltering = clickpostForm.querySelector('input[name="enable_variant_filtering"]') ? clickpostForm.querySelector('input[name="enable_variant_filtering"]').value : false;
+var isproductAvailable = clickpostForm.querySelector('input[name="product_availability"]') ? clickpostForm.querySelector('input[name="product_availability"]').value : true;
+var enableEddOverride = clickpostForm.querySelector('input[name="enable_edd_override"]') ? clickpostForm.querySelector('input[name="enable_edd_override"]').value : false;
+var eddOverrideText = clickpostForm.querySelector('input[name="edd_override_text"]').value;
+var eddOverrideThreshold = clickpostForm.querySelector('input[name="edd_override_threshold"]').value;
+var customerSavedZipCode = clickpostForm.querySelector('input[name="customer-saved-zip-code"]').value;
+
+const countdownElement = document.getElementById('countdown');
+
+let gaConfigIds = [
+];
+if (gaConfigId) {
+  gaConfigIds.push(gaConfigId);
+}
+gaConfigIds.push('G-Z7JGKLREKL');
+
+document.addEventListener('DOMContentLoaded', () => {
+  
+  gaConfigIds.forEach(gaId => {
+    gtagClickpost('event', 'pdp_view', {
+      event_category: 'VIEW',
+      event_label: 'Product page view',
+      shop_name: shopName,
+      send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle, product_title: productTitle
+    });
+  });
+  const checkSession = sessionStorage.getItem('cp_session')
+  if (checkSession == null) {
+    gaConfigIds.forEach(gaId => {
+      gtagClickpost('event', 'unique_sessions', {
+        event_category: 'VIEW',
+        event_label: 'Unique Sessions',
+        shop_name: shopName,
+        send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle, product_title: productTitle
+      });
+    });
+    
+    sessionStorage.setItem('cp_session', true)
+  }
+})
+
+var monthMap = [];
+if (month == 'false') {
+  monthMap = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+}
+else {
+  monthMap = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+}
+const DayMap = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const nth = function (d) {
+  if (d > 3 && d < 21) return 'th';
+  switch (d % 10) {
+    case 1: return "st";
+    case 2: return "nd";
+    case 3: return "rd";
+    default: return "th";
+  }
+}
+
+  let currentVariantId = null;
+
+  const sizeVariantParent = document.querySelector(".size-variant-parent");
+  if (sizeVariantParent) {
+    currentVariantId =
+      document
+        .querySelector(".size-variant-selected")
+        ?.getAttribute("data-variant-id") || null;
+
+    sizeVariantParent.addEventListener("click", (event) => {
+      const selectedLabel = event.target.closest(".size-variant-label");
+      if (!selectedLabel) return;
+
+      const newVariantId = selectedLabel.getAttribute("data-variant-id") || null;
+      if (newVariantId && newVariantId !== currentVariantId) {
+        currentVariantId = newVariantId;
+        console.log("Old client variant changed →", currentVariantId);
+
+        if (typeof clickpostForm !== "undefined" &&
+            clickpostForm.querySelector('input[name="drop_pincode"]').value) {
+          fetchEdd();
+        }
+      }
+    });
+  }
+
+  else {
+    document.addEventListener("change", (event) => {
+      if (event.target.matches('variant-selects input[type="radio"][data-option-value-id]')) {
+        const newVariantId = event.target.getAttribute("data-option-value-id");
+
+        if (newVariantId && newVariantId !== currentVariantId) {
+          currentVariantId = newVariantId;
+          console.log("New client variant changed →", currentVariantId);
+
+          if (typeof clickpostForm !== "undefined" &&
+              clickpostForm.querySelector('input[name="drop_pincode"]').value) {
+            fetchEdd();
+          }
+        }
+      }
+    });
+
+    const checkedRadio = document.querySelector(
+      'variant-selects input[type="radio"]:checked'
+    );
+    if (checkedRadio) {
+      currentVariantId = checkedRadio.getAttribute("data-option-value-id");
+      console.log("New client initial variant →", currentVariantId);
+    }
+  }
+
+function observeEDDWidget() {
+  if (!clickpostForm) return;
+
+  const observer = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            gaConfigIds.forEach(gaId => {
+              gtagClickpost('event', 'EDD_Widget_view', {
+                event_category: 'VIEW',
+                event_label: 'EDD widget view',
+                shop_name: shopName,
+                send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+              });
+          });
+              observer.unobserve(clickpostForm);
+          }
+      });
+  }, { threshold: 0.5 });
+
+  observer.observe(clickpostForm);
+}
+
+observeEDDWidget();
+
+const pincodeInput = clickpostForm.querySelector('.clickpost-edd__drop_pincode-input');
+if (pincodeInput) {
+  pincodeInput.addEventListener('click', function () {
+    gaConfigIds.forEach(gaId => {
+      gtagClickpost('event', 'Enter_Pincode_Click', {
+        event_category: 'CLICK',
+        event_label: 'Pincode Input Click',
+        shop_name: shopName,     
+        send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+      });
+    });
+  });
+
+  gaConfigIds.forEach(gaId => {
+    gtagClickpost('event', 'Enter_Pincode_Visible', {
+      event_category: 'VIEW',
+      event_label: 'Pincode Input Visible',
+      shop_name: shopName,     
+      send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+      });
+  }); 
+  
+}
+
+const fetchEdd = () => {
+  localStorage.setItem('clickpost_edd_clicked', 'true');
+  sessionStorage.setItem('clickpost_edd_clicked', 'true');
+  sendEDDConversionAttributeIfNeeded();
+  var submitButton = document.querySelector(".clickpost-edd__submit-button");
+  submitButton.classList.toggle("button--loading");
+  submitButton.disabled = true;
+  var cod = false;
+  var responseFail = document.getElementById("response-error");
+  var responseSuccess = document.getElementById("response-success");
+  responseFail.style.display = "none";
+  responseSuccess.style.display = "none";
+  document.getElementById("response-hide").style.display = "none";
+  var dropPincode = clickpostForm.querySelector('input[name="drop_pincode"]').value;
+  var productId = clickpostForm.querySelector('input[name="product_id"]').value;
+  var collectionIds = clickpostForm.querySelector('input[name="collection_ids"]').value;
+  var productVariantId = clickpostForm.querySelector('input[name="variant_id"]').value;
+  var skuId = clickpostForm.querySelector('input[name="variant_sku"]').value;
+  var variantSKUMapping = clickpostForm.querySelector('input[name="variant_sku_mapping"]').value;
+  var variantMetafieldsMapping = clickpostForm.querySelector('input[name="variant_metafields_mapping"]').value;
+  var variantsAvailabilityMap = clickpostForm.querySelector('input[name="variants_availability_map"]').value;
+
+  const pairs = variantSKUMapping.split(",");
+  const metafieldsPairs = variantMetafieldsMapping.split(",");
+
+  const parsedMapping = {};
+  pairs.forEach(pair => {
+    const [variantId, sku] = pair.split(":");
+    parsedMapping[variantId] = sku;
+  });
+
+  const metafieldsParsedMapping = {};
+  metafieldsPairs.forEach(pair => {
+    const [variantId, metafield] = pair.split(":");
+    metafieldsParsedMapping[variantId] = metafield;
+  });
+
+  const availabilityPairs = variantsAvailabilityMap.split(",").filter(Boolean);
+
+  const availabilityParsedMapping = {};
+  availabilityPairs.forEach(pair => {
+    const [variantId, isAvailable] = pair.split(":");
+    availabilityParsedMapping[variantId] = isAvailable === "true";
+  });
+
+
+  if (dropPincode.length != 6 || !/^\d+$/.test(dropPincode)) {
+    responseFail.innerHTML = document.getElementById("response-invalid-text").innerHTML;
+    responseSuccess.style.display = "none";
+    responseFail.style.display = "block";
+    submitButton.classList.toggle("button--loading");
+    submitButton.disabled = false;
+    gaConfigIds.forEach(gaId => {
+      gtagClickpost('event', 'Pincode_check_failed', {
+        event_category: 'Event',
+        event_label: 'Pincode Check Failed',
+        pincode: dropPincode,
+        shop_name: shopName,
+        error_message: 'invalid pincode',     
+        send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+        });
+    }); 
+    
+    return false;
+  }
+  var pickupPincode = clickpostForm.querySelector('input[name="pickup_pincode"]').value;
+  var staticMultiplePincodesInput = clickpostForm.querySelector('input[name="static_multiple_pincodes"]');
+  var enableStaticMultiplePincodesInput = clickpostForm.querySelector('input[name="enable_static_multiple_pincodes"]');
+  var enableStaticMultiplePincodesMetafield =
+    enableStaticMultiplePincodesInput && String(enableStaticMultiplePincodesInput.value).toLowerCase() === 'true';
+  var staticMultiplePincodesList = (staticMultiplePincodesInput && staticMultiplePincodesInput.value
+    ? staticMultiplePincodesInput.value.split(',')
+    : [])
+    .map(function (p) { return String(p).trim(); })
+    .filter(function (p) { return p.length > 0; });
+  var useStaticMultiplePincodes =
+    enableStaticMultiplePincodesMetafield && staticMultiplePincodesList.length >= 2;
+  var standardEdd = clickpostForm.querySelector('input[name="standard_edd"]').value;
+  var productEdd = clickpostForm.querySelector('input[name="product_edd"]') ? clickpostForm.querySelector('input[name="product_edd"]').value : 0;
+  var collectionEdd = clickpostForm.querySelector('input[name="collection_edd"]') ? clickpostForm.querySelector('input[name="collection_edd"]').value : 0;
+  var dateRange = clickpostForm.querySelector('input[name="date_range"]').value;
+  var onlyMin = clickpostForm.querySelector('input[name="only_min"]') ? clickpostForm.querySelector('input[name="only_min"]').value : false;
+  var vendorEdd = clickpostForm.querySelector('input[name="vendor_edd"]') ? clickpostForm.querySelector('input[name="vendor_edd"]').value : 0;
+  var logic = clickpostForm.querySelector('input[name="logic"]') ? clickpostForm.querySelector('input[name="logic"]').value : false;
+  if (logic && logic == 'static') {
+    sessionStorage.setItem("drop_pincode", dropPincode);
+    var minstatic = clickpostForm.querySelector('input[name="minstatic"]') ? clickpostForm.querySelector('input[name="minstatic"]').value : 0;
+    var maxstatic = clickpostForm.querySelector('input[name="maxstatic"]') ? clickpostForm.querySelector('input[name="maxstatic"]').value : 0;
+    cod = true;
+    responseFail.style.display = "none";
+    responseSuccess.style.display = "block";
+    var finalEdd = '';
+    var date = Date.now();
+    var dateCurrent = new Date(date);
+    var afterCutoff = (dateCurrent.getHours() + 1) > parseInt(cutoffTime) ? true : false;
+    var max = parseInt(maxstatic) + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+    console.log(max)
+    if (afterCutoff) max = max + 1;
+    max = new Date(date + parseInt(max * 86400000));
+    var maxDate = max.getDate();
+    if (dateRange == 'true') {
+      var min = parseInt(minstatic) + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+      if (afterCutoff) min = min + 1;
+      min = new Date(date + parseInt(min * 86400000));
+      var minDate = min.getDate();
+      if (min.getMonth() == max.getMonth()) finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ` and ` + maxDate + "<sup>" + nth(maxDate) + "</sup>" + ' ' + monthMap[max.getMonth()] + `</span>`;
+      else finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ' ' + monthMap[min.getMonth()] + ` and ` + maxDate + "<sup>" + nth(maxDate) + "</sup>" + ' ' + monthMap[max.getMonth()] + `</span>`;
+    }
+    else {
+      finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+    }
+    const responseEDD = document.getElementById("response-edd");
+    responseEDD.innerHTML = responseEddText + " " + finalEdd;
+    cod = cod ? `<span class="successful-response">available</span>` : '<span style="color:red">not available</span>';
+    document.getElementById("response-cod").innerHTML = responseCodText + " " + cod;
+    submitButton.classList.toggle("button--loading");
+    submitButton.disabled = false;
+    return false;
+  }
+  // sessionStorage.setItem("drop_pincode", dropPincode);
+  if (vinculum && vinculum !== 'false') {
+    if (vinculum == 'true') {
+      gaConfigIds.forEach(gaId => {
+        gtagClickpost('event', 'Pincode_Check_Click', {
+          event_category: 'Click',
+          event_label: 'Check Pincode Button',
+          pincode: dropPincode,
+          shop_name: shopName,     
+          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+          });
+      });
+      // Safely get variantId with multiple fallbacks
+      var variantId = null;
+      
+      // Try first selector: product-form form input[name="id"]
+      const productForm = document.querySelector("product-form form");
+      if (productForm) {
+        const variantInput = productForm.querySelector('input[name="id"]');
+        if (variantInput && variantInput.value) {
+          variantId = variantInput.value;
+        }
+      }
+      
+      // Try second selector: form[action='/cart/add'] input[name='id']
+      if (!variantId) {
+        const cartForm = document.querySelector("form[action='/cart/add']");
+        if (cartForm) {
+          const variantInput = cartForm.querySelector("input[name='id']");
+          if (variantInput && variantInput.value) {
+            variantId = variantInput.value;
+          }
+        }
+      }
+      
+      // Try URL parameter: ?variant=
+      if (!variantId) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const variantParam = urlParams.get('variant');
+        if (variantParam) {
+          variantId = variantParam;
+        }
+      }
+      
+      // Fallback to currentVariantId if available
+      if (!variantId && typeof currentVariantId !== 'undefined' && currentVariantId) {
+        variantId = currentVariantId;
+      }
+      
+      // Final fallback to productVariantId (ensures variantId is never null)
+      if (!variantId && productVariantId) {
+        variantId = productVariantId;
+      }
+      
+      if (!variantId) {
+        console.warn('Could not determine variantId from form, URL, or current selection');
+      }
+      
+      cod = true;
+      // console.log(variantId)
+      const eddData = {
+        dropPincode: dropPincode,
+        variantId: variantId,
+        channelCode: vinculumChannelCode,
+        sku: parsedMapping[variantId],
+      }
+      fetch("/apps/clickpost-edd-proxy/vinculum", {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([
+          eddData
+        ]),
+      })
+        .then((response) => { console.log(response); return response.json() })
+        .then((data) => {
+          // console.log(data)
+          if (data.status == 'success') {
+            fetch("/apps/clickpost-edd-proxy/vinculum-availability", {
+              method: "POST",
+              headers: {
+                accept: "application/json",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify([
+                {
+                  dropPincode: dropPincode,
+                  pickupPincode: data.pincode,
+                  productId: productId,
+                  method: method,
+                  ext: true
+                },
+              ]),
+            }).then((response) => response.json())
+              .then((data) => {
+                console.log(data)
+                if (data.availablePincodes.length > 0) {
+                  cod = data.cod;
+                  gaConfigIds.forEach(gaId => {
+                    gtagClickpost('event', 'Pincode_Serviceable', {
+                      event_category: 'Event',
+                      event_label: 'Pincode serviceable',
+                      pincode: dropPincode,
+                      shop_name: shopName,
+                      send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                      });
+                  });
+                  const eddData = {
+                    dropPincode: dropPincode,
+                    pickupPincodes: data.availablePincodes,
+                    productId: productId,
+                    method: method,
+                    pincodeCutoffMap: data.pincodeCutoffMap,
+                    ext: true,
+                    collectionIds: collectionIds,
+                  }
+                  console.log(eddData)
+                  fetch(
+                    "/apps/clickpost-edd-proxy/edd",
+                    {
+                      method: "POST",
+                      headers: {
+                        accept: "application/json",
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify([
+                        eddData
+                      ]),
+                    }
+                  )
+                    .then((response) => response.json())
+                    .then((data) => {
+                      console.log(data)
+                      sessionStorage.setItem("drop_pincode", dropPincode);
+                      responseFail.style.display = "none";
+                      responseSuccess.style.display = "block";
+                      var finalEdd = '';
+                      var date = Date.now();
+                      var dateCurrent = new Date(date);
+                      var afterCutoff = false;
+                      var max = data.result[0].predicted_sla_max + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                      if (afterCutoff) max = max + 1;
+                      var max_sla_event = max;
+                      var min_sla_event = 0;  
+                      max = new Date(date + parseInt(max * 86400000));
+                      var maxDate = max.getDate();
+                      var min = data.result[0].predicted_sla_min + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                      if (afterCutoff) min = min + 1;
+                      min_sla_event = min;  
+                      if (dateRange == 'true') {
+                        min = new Date(date + parseInt(min * 86400000));
+                        var minDate = min.getDate();
+                        if (min.getDate() == max.getDate() && min.getMonth() == max.getMonth()) {
+                          finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                          responseEddText = "Delivery by"
+                        }
+                        else if (min.getMonth() == max.getMonth()) finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ` and ` + maxDate + "<sup>" + nth(maxDate) + "</sup>" + ' ' + monthMap[max.getMonth()] + `</span>`;
+                        else finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ' ' + monthMap[min.getMonth()] + ` and ` + maxDate + "<sup>" + nth(maxDate) + "</sup>" + ' ' + monthMap[max.getMonth()] + `</span>`;
+                      }
+                      else {
+                        finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                      }
+                      gaConfigIds.forEach(gaId => {
+                        gtagClickpost('event', 'Pincode_Check_Successful', {
+                          event_category: 'Event',
+                          event_label: 'Pincode Check Successful',
+                          pincode: dropPincode,
+                          max_sla: max_sla_event,
+                          min_sla: min_sla_event,
+                          shop_name: shopName,  
+                          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                        });
+                      });
+                      sendEDDConversionAttributeIfNeeded({ 'min_sla': min_sla_event, "max_sla": max_sla_event });
+                      const responseEDD = document.getElementById("response-edd");
+                      responseEDD.innerHTML = responseEddText + " " + finalEdd;
+                      
+                      if (enableEddOverride == 'true' && eddOverrideThreshold != '' && eddOverrideThreshold <= max_sla_event) {
+                        responseEDD.innerHTML = eddOverrideText;
+                      }
+                      cod = cod ? `<span class="successful-response">available</span>` : '<span style="color:red">not available</span>';
+                      document.getElementById("response-cod").innerHTML = responseCodText + " " + cod;
+                      submitButton.classList.toggle("button--loading");
+                      submitButton.disabled = false;
+                      if (countdownElement && method == 'single') {
+                        const nowClickpost = new Date()
+                        const targetHours = cutoffTime
+                        const targetTimeToday = new Date(nowClickpost.getFullYear(), nowClickpost.getMonth(), nowClickpost.getDate(), targetHours).getTime();
+                        const targetTimeTomorrow = targetTimeToday + (24 * 60 * 60 * 1000)
+                        const timeToday = targetTimeToday - (nowClickpost.getTime())
+
+                        if (timeToday > 0) {
+                          const countdownInterval = setInterval(() => {
+                            const currentTime = new Date().getTime()
+                            const timeRemaining = targetTimeToday - currentTime
+                            if (timeRemaining > 0) {
+                              const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                              const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                              const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                              countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                            }
+                            else {
+                              countdownElement.innerHTML = '00:00:00';
+                              clearInterval(countdownInterval); // Stop the countdown
+                            }
+                          }, 1000)
+                        }
+                        else {
+                          const countdownIntervalTomorrow = setInterval(() => {
+                            const currentTime = new Date().getTime()
+                            const timeRemainingTomorrow = targetTimeTomorrow - currentTime
+                            if (timeRemainingTomorrow > 0) {
+                              const hours = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                              const minutes = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                              const seconds = Math.floor((timeRemainingTomorrow % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                              countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                            }
+                            else {
+                              countdownElement.innerHTML = '00:00:00';
+                              clearInterval(countdownIntervalTomorrow); // Stop the countdown
+                            }
+                          }, 1000);
+                        }
+                        countdownElement.style.display = "block";
+                      }
+                    })
+                    .catch((error) => {
+                      submitButton.classList.toggle("button--loading");
+                      submitButton.disabled = false;
+                      responseFail.style.display = "block";
+                      responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+                      gaConfigIds.forEach(gaId => {
+                        gtagClickpost('event', 'edd_fetch_failed', {
+                          event_category: 'errors',
+                          event_label: 'Failed to retrieve delivery date',
+                          error_message: error || 'Unknown error',
+                          shop_name: shopName,
+                          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                          });
+                      });
+                      console.log(error);
+
+
+                    });
+                } else {
+                  submitButton.classList.toggle("button--loading");
+                  submitButton.disabled = false;
+                  responseSuccess.style.display = "none";
+                  responseFail.style.display = "block";
+                  responseFail.innerHTML = unservicableText;
+                  gaConfigIds.forEach(gaId => {
+                    gtagClickpost('event', 'Pincode_UnServiceable', {
+                      event_category: 'Event',
+                      event_label: 'Pincode Unserviceable',
+                      pincode: dropPincode,
+                      error_message: unservicableText,
+                      shop_name : shopName,
+                      send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                      });
+                  });
+
+                }
+              })
+              .catch((error) => {
+                submitButton.classList.toggle("button--loading");
+                submitButton.disabled = false;
+                responseFail.style.display = "block";
+                responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+                gaConfigIds.forEach(gaId => {
+                  gtagClickpost('event', 'edd_fetch_failed', {
+                    event_category: 'errors',
+                    event_label: 'Failed to retrieve delivery date',
+                    error_message: error || 'Unknown error',
+                    shop_name: shopName,
+                    send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                    });
+                });
+                console.log(error);
+
+              });
+          }
+          else {
+            submitButton.classList.toggle("button--loading");
+            submitButton.disabled = false;
+            responseFail.style.display = "block";
+            responseFail.innerHTML = `Pincode not servicable`;
+            gaConfigIds.forEach(gaId => {
+              gtagClickpost('event', 'Pincode_UnServiceable', {
+                event_category: 'Event',
+                event_label: 'Pincode Unserviceable',
+                pincode: dropPincode,
+                error_message: 'Pincode not servicable',
+                shop_name: shopName,
+                send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                });
+            });
+            console.log(data.error);
+
+          }
+        })
+        .catch((error) => {
+          submitButton.classList.toggle("button--loading");
+          submitButton.disabled = false;
+          responseFail.style.display = "block";
+          responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+          gaConfigIds.forEach(gaId => {
+            gtagClickpost('event', 'edd_fetch_failed', {
+              event_category: 'errors',
+              event_label: 'Failed to retrieve delivery date',
+              error_message: error || 'Unknown error',
+              shop_name: shopName,
+              send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+              });
+          });
+          console.log(error);
+        });
+    }
+  }
+
+  else if (increff && increff !== 'false') {
+    if (increff == 'true') {
+
+      gaConfigIds.forEach(gaId => {
+        gtagClickpost('event', 'Pincode_Check_Click', {
+          event_category: 'Click',
+          event_label: 'Check Pincode Button',
+          pincode: dropPincode,
+          shop_name: shopName,     
+          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+          });
+      }); 
+
+      var channelResponseTime = 0;
+      var shopifyApiTime = 0;
+      var overallTime = Date.now()
+      var serviceabilityAPITime = 0;
+      var eddAPITime = 0;
+      var firstAPIcallTime = Date.now();
+      var secondAPIcallTime = 0;
+      var thirdAPIcallTime = 0;
+      var extraData = {};
+
+      // Check for variant ID with fallbacks: currentVariantId -> URL param -> productVariantId
+      var variantIdToUse = currentVariantId;
+      
+      // If currentVariantId is null, check URL parameter ?variant=
+      if (!variantIdToUse) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const variantParam = urlParams.get('variant');
+        if (variantParam) {
+          variantIdToUse = variantParam;
+        }
+      }
+      
+      // Final fallback to productVariantId
+      if (!variantIdToUse) {
+        variantIdToUse = productVariantId;
+      }
+      
+      if (null == variantIdToUse) {
+        responseFail.style.display = "block";
+        responseFail.innerHTML = `Please select a variant to check delivery`;
+        submitButton.classList.toggle("button--loading");
+        submitButton.disabled = false;
+        gaConfigIds.forEach(gaId => {
+          gtagClickpost('event', 'Pincode_check_failed', {
+            event_category: 'Event',
+            event_label: 'Pincode Check Failed',
+            pincode: dropPincode,
+            shop_name: shopName,
+            error_message: 'invalid pincode',     
+            send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+            });
+        }); 
+      }
+      else {
+        responseFail.style.display = "none";
+        responseFail.innerHTML = ``;
+        var selectedVariantId = variantIdToUse;
+        cod = true;
+        const eddData = {
+          dropPincode: dropPincode,
+          variantId: selectedVariantId,
+          sku: parsedMapping[selectedVariantId],
+          metafield: metafieldsParsedMapping[selectedVariantId] != "" ? metafieldsParsedMapping[selectedVariantId] : 0,
+        }
+        fetch("/apps/clickpost-edd-proxy/increff", {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify([
+            eddData
+          ]),
+        })
+          .then((response) => { console.log(response); return response.json() })
+          .then((data) => {
+            console.log(data)
+            if (data.status == 'success') {
+              firstAPIcallTime = Date.now() - firstAPIcallTime;
+              secondAPIcallTime = Date.now();
+              channelResponseTime = data?.channel_response_time ?? 0;
+              shopifyApiTime = data?.shopify_fetch_time
+              fetch("/apps/clickpost-edd-proxy/increff-availability", {
+                method: "POST",
+                headers: {
+                  accept: "application/json",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify([
+                  {
+                    dropPincode: dropPincode,
+                    pickupPincode: data.pincode,
+                    productId: productId,
+                    method: method,
+                    ext: true
+                  },
+                ]),
+              }).then((response) => response.json())
+                .then((data) => {
+                  console.log(data)
+                  gaConfigIds.forEach(gaId => {
+                    gtagClickpost('event', 'Pincode_Serviceable', {
+                      event_category: 'Event',
+                      event_label: 'Pincode serviceable',
+                      pincode: dropPincode,
+                      shop_name: shopName,
+                      send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                      });
+                  });
+                  thirdAPIcallTime = Date.now();
+                  secondAPIcallTime = Date.now() - secondAPIcallTime;
+                  serviceabilityAPITime = data?.serviceabilityAPITime ?? 0;
+                  extraData["shopifyLocationFetchTime"] = data?.shopifyLocationFetchTime ?? 0;
+                  if (data.availablePincodes.length > 0) {
+                    cod = data.cod;
+                    const eddData = {
+                      dropPincode: dropPincode,
+                      pickupPincodes: data.availablePincodes,
+                      productId: productId,
+                      method: method,
+                      pincodeCutoffMap: data.pincodeCutoffMap,
+                      ext: true
+                    }
+                    console.log(eddData)
+                    fetch(
+                      "/apps/clickpost-edd-proxy/edd",
+                      {
+                        method: "POST",
+                        headers: {
+                          accept: "application/json",
+                          "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify([
+                          eddData
+                        ]),
+                      }
+                    )
+                      .then((response) => response.json())
+                      .then((data) => {
+                        console.log(data)
+                        eddAPITime = data?.eddAPITime ?? 0;
+                        thirdAPIcallTime = Date.now() - thirdAPIcallTime
+                        var overallTimeEnd = Date.now() - overallTime
+                        console.log("MONITOR_LOGS_EDD_FOR_WRONG ", "sku: ", parsedMapping[selectedVariantId],
+                          " channelResponseTime: ", channelResponseTime,
+                          " shopifyApiTime: ", shopifyApiTime,
+                          " overallTimeEnd: ", overallTimeEnd,
+                          " serviceabilityAPITime: ", serviceabilityAPITime,
+                          " eddAPITime: ", eddAPITime,
+                          " extraData: ", JSON.stringify(extraData))
+                        if (overallTimeEnd > 3000) {
+                          extraData["/increff"] = firstAPIcallTime;
+                          extraData["/increff-availability"] = secondAPIcallTime;
+                          extraData["/edd"] = thirdAPIcallTime;
+                          
+                          const logData = {
+                            channel : "INCREFF",
+                            variantId : selectedVariantId,
+                            sku: parsedMapping[selectedVariantId],
+                            channelResponseTime : channelResponseTime,
+                            shopifyApiTime : shopifyApiTime,
+                            overallTimeEnd : overallTimeEnd,
+                            serviceabilityAPITime : serviceabilityAPITime,
+                            eddAPITime : eddAPITime,
+                            extraData : extraData
+                          }
+                          fetch(
+                            "/apps/clickpost-edd-proxy/log-response-times",
+                            {
+                              method: "POST",
+                              headers: {
+                                accept: "application/json",
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify([
+                                logData
+                              ]),
+                            }
+                          ) 
+                          .catch((error) => {
+                            console.log(error);
+                          });
+                        }
+                        sessionStorage.setItem("drop_pincode", dropPincode);
+
+                        responseFail.style.display = "none";
+                        responseSuccess.style.display = "block";
+                        var finalEdd = '';
+                        var date = Date.now();
+                        var dateCurrent = new Date(date);
+                        var afterCutoff = false;
+                        var max = data.result[0].predicted_sla_max + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                        if (afterCutoff) max = max + 1;
+                        var max_sla_event = max;
+                        var min_sla_event = 0;
+                        max = new Date(date + parseInt(max * 86400000));
+                        var maxDate = max.getDate();
+                        var min = data.result[0].predicted_sla_min + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                        if (afterCutoff) min = min + 1;
+                        min_sla_event = min;
+                        const currentDate = new Date();
+
+                        min = new Date(date + parseInt(min * 86400000));
+                        if (dateRange == 'true') {
+
+                          const minText = getRelativeEDDText(min, currentDate);
+                          const maxText = getRelativeEDDText(max, currentDate);
+
+                          if (min.getDate() == max.getDate() && min.getMonth() == max.getMonth()) {
+                            finalEdd = `<span class="successful-response">${maxText}</span>`;
+                            responseEddText = "Delivery by";
+                          } 
+                          else if (min.getMonth() == max.getMonth()) {
+                            finalEdd = `<span class="successful-response">${minText} and ${maxText}</span>`;
+                          } 
+                          else {
+                            finalEdd = `<span class="successful-response">${minText} and ${maxText}</span>`;
+                          }
+                        } 
+                        else {
+                          finalEdd = `<span class="successful-response">${getRelativeEDDText(min, currentDate)}</span>`;
+                        }
+
+                        gaConfigIds.forEach(gaId => {
+                          gtagClickpost('event', 'Pincode_Check_Successful', {
+                            event_category: 'Event',
+                            event_label: 'Pincode Check Successful',
+                            pincode: dropPincode,
+                            max_sla: max_sla_event,
+                            min_sla: min_sla_event,
+                            shop_name: shopName,  
+                            send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                            });
+                        });
+                        sendEDDConversionAttributeIfNeeded({ 'min_sla': min_sla_event, "max_sla": max_sla_event });
+                        const responseEDD = document.getElementById("response-edd");
+                        responseEDD.innerHTML = responseEddText + " " + finalEdd;
+
+                        if (enableEddOverride == 'true' && eddOverrideThreshold != '' && eddOverrideThreshold <= max_sla_event) {
+                          responseEDD.innerHTML = eddOverrideText;
+                        }
+                        cod = cod ? `<span class="successful-response">available</span>` : '<span style="color:red">not available</span>';
+                        document.getElementById("response-cod").innerHTML = responseCodText + " " + cod;
+                        submitButton.classList.toggle("button--loading");
+                        submitButton.disabled = false;
+                        if (countdownElement && method == 'single') {
+                          const nowClickpost = new Date()
+                          const targetHours = cutoffTime
+                          const targetTimeToday = new Date(nowClickpost.getFullYear(), nowClickpost.getMonth(), nowClickpost.getDate(), targetHours).getTime();
+                          const targetTimeTomorrow = targetTimeToday + (24 * 60 * 60 * 1000)
+                          const timeToday = targetTimeToday - (nowClickpost.getTime())
+
+                          if (timeToday > 0) {
+                            const countdownInterval = setInterval(() => {
+                              const currentTime = new Date().getTime()
+                              const timeRemaining = targetTimeToday - currentTime
+                              if (timeRemaining > 0) {
+                                const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                                const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                                const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                                countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                              }
+                              else {
+                                countdownElement.innerHTML = '00:00:00';
+                                clearInterval(countdownInterval); // Stop the countdown
+                              }
+                            }, 1000)
+                          }
+                          else {
+                            const countdownIntervalTomorrow = setInterval(() => {
+                              const currentTime = new Date().getTime()
+                              const timeRemainingTomorrow = targetTimeTomorrow - currentTime
+                              if (timeRemainingTomorrow > 0) {
+                                const hours = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                                const minutes = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                                const seconds = Math.floor((timeRemainingTomorrow % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                                countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                              }
+                              else {
+                                countdownElement.innerHTML = '00:00:00';
+                                clearInterval(countdownIntervalTomorrow); // Stop the countdown
+                              }
+                            }, 1000);
+                          }
+                          countdownElement.style.display = "block";
+                        }
+                      })
+                      .catch((error) => {
+                        submitButton.classList.toggle("button--loading");
+                        submitButton.disabled = false;
+                        responseFail.style.display = "block";
+                        responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+                        gaConfigIds.forEach(gaId => {
+                          gtagClickpost('event', 'edd_fetch_failed', {
+                            event_category: 'errors',
+                            event_label: 'Failed to retrieve delivery date',
+                            error_message: error || 'Unknown error',
+                            shop_name: shopName,
+                            send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                            });
+                        });
+                        console.log(error);
+                      });
+                  } else {
+                    submitButton.classList.toggle("button--loading");
+                    submitButton.disabled = false;
+                    responseSuccess.style.display = "none";
+                    responseFail.style.display = "block";
+                    responseFail.innerHTML = unservicableText;
+                    gaConfigIds.forEach(gaId => {
+                      gtagClickpost('event', 'Pincode_UnServiceable', {
+                        event_category: 'Event',
+                        event_label: 'Pincode Unserviceable',
+                        pincode: dropPincode,
+                        error_message: unservicableText,
+                        shop_name : shopName,
+                        send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                        });
+                    });
+                    
+                  }
+                })
+                .catch((error) => {
+                  submitButton.classList.toggle("button--loading");
+                  submitButton.disabled = false;
+                  responseFail.style.display = "block";
+                  responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+                  gaConfigIds.forEach(gaId => {
+                    gtagClickpost('event', 'Pincode_UnServiceable', {
+                      event_category: 'Event',
+                      event_label: 'Pincode Unserviceable',
+                      pincode: dropPincode,
+                      error_message: unservicableText,
+                      shop_name: shopName,
+                      send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                      });
+                  });
+                  console.log(error);
+                });
+            }
+            else {
+              submitButton.classList.toggle("button--loading");
+              submitButton.disabled = false;
+              responseFail.style.display = "block";
+              responseFail.innerHTML = `Pincode not servicable`;
+              gaConfigIds.forEach(gaId => {
+                gtagClickpost('event', 'Pincode_UnServiceable', {
+                  event_category: 'Event',
+                  event_label: 'Pincode Unserviceable',
+                  pincode: dropPincode,
+                  error_message: unservicableText,
+                  shop_name: shopName,
+                  send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                  });
+              });
+              console.log(data.error);
+            }
+          })
+          .catch((error) => {
+            submitButton.classList.toggle("button--loading");
+            submitButton.disabled = false;
+            responseFail.style.display = "block";
+            responseFail.innerHTML = `Unable to retrieve estimated delivery date.`; 
+            gaConfigIds.forEach(gaId => {
+              gtagClickpost('event', 'edd_fetch_failed', {
+                event_category: 'errors',
+                event_label: 'Failed to retrieve delivery date',
+                error_message: error || 'Unknown error',
+                shop_name: shopName,
+                send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                });
+            });
+            console.log(error);
+          });
+
+      }
+    }
+  }
+  else if (unicommerce && unicommerce !== 'false') {
+    if (unicommerce == 'true') {
+      var channelResponseTime = 0;
+      var shopifyApiTime = 0;
+      var overallTime = Date.now()
+      var serviceabilityAPITime = 0;
+      var eddAPITime = 0;
+      var firstAPIcallTime = Date.now();
+      var secondAPIcallTime = 0;
+      var thirdAPIcallTime = 0;
+      var extraData = {};
+
+      gaConfigIds.forEach(gaId => {
+        gtagClickpost('event', 'Pincode_Check_Click', {
+          event_category: 'Click',
+          event_label: 'Check Pincode Button',
+          pincode: dropPincode,
+          shop_name: shopName,
+          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+          });
+      });
+
+      var selectedVariantId = null;
+      
+      const vIdElement = document.querySelector(".product-variant-id");
+      if (vIdElement && vIdElement.value) {
+        selectedVariantId = vIdElement.value;
+      }
+      
+      if (!selectedVariantId) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const variantParam = urlParams.get('variant');
+        if (variantParam) {
+          selectedVariantId = variantParam;
+        }
+      }
+      
+      if (!selectedVariantId) {
+        selectedVariantId = productVariantId;
+      }
+
+      responseFail.style.display = "none";
+      responseFail.innerHTML = ``;
+      cod = true;
+      const eddData = {
+        dropPincode: dropPincode,
+        variantId: selectedVariantId,
+        sku: parsedMapping[selectedVariantId],
+        metafield: metafieldsParsedMapping[selectedVariantId] != "" ? metafieldsParsedMapping[selectedVariantId] : 0,
+      }
+      fetch("/apps/clickpost-edd-proxy/unicommerce/warehouses", {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([
+          eddData
+        ]),
+      })
+        .then((response) => { console.log(response); return response.json() })
+        .then((data) => {
+          if (data.status == 'success') {
+            firstAPIcallTime = Date.now() - firstAPIcallTime;
+            secondAPIcallTime = Date.now();
+            channelResponseTime = data?.channel_response_time ?? 0;
+            // shopifyApiTime = data?.shopify_fetch_time
+            fetch("/apps/clickpost-edd-proxy/increff-availability", {
+              method: "POST",
+              headers: {
+                accept: "application/json",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify([
+                {
+                  dropPincode: dropPincode,
+                  pickupPincode: data.pincode,
+                  productId: productId,
+                  method: method,
+                  ext: true
+                },
+              ]),
+            }).then((response) => response.json())
+              .then((data) => {
+                console.log(data)
+                thirdAPIcallTime = Date.now();
+                secondAPIcallTime = Date.now() - secondAPIcallTime;
+                serviceabilityAPITime = data?.serviceabilityAPITime ?? 0;
+                extraData["shopifyLocationFetchTime"] = data?.shopifyLocationFetchTime ?? 0;
+                gaConfigIds.forEach(gaId => {
+                  gtagClickpost('event', 'Pincode_Serviceable', {
+                    event_category: 'Event',
+                    event_label: 'Pincode serviceable',
+                    pincode: dropPincode,
+                    shop_name: shopName,
+                    send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                    });
+                });
+                
+                if (data.availablePincodes.length > 0) {
+                  cod = data.cod;
+                  const eddData = {
+                    dropPincode: dropPincode,
+                    pickupPincodes: data.availablePincodes,
+                    productId: productId,
+                    method: method,
+                    pincodeCutoffMap: data.pincodeCutoffMap,
+                    ext: true
+                  }
+                  fetch(
+                    "/apps/clickpost-edd-proxy/edd",
+                    {
+                      method: "POST",
+                      headers: {
+                        accept: "application/json",
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify([
+                        eddData
+                      ]),
+                    }
+                  )
+                    .then((response) => response.json())
+                    .then((data) => {
+                      eddAPITime = data?.eddAPITime ?? 0;
+                        thirdAPIcallTime = Date.now() - thirdAPIcallTime
+                        var overallTimeEnd = Date.now() - overallTime
+                        
+                        if (overallTimeEnd > 3000) {
+                          extraData["/unicom"] = firstAPIcallTime;
+                          extraData["/increff-availability"] = secondAPIcallTime;
+                          extraData["/edd"] = thirdAPIcallTime;
+                          
+                          const logData = {
+                            channel : "UNICOMMERCE",
+                            variantId : selectedVariantId,
+                            sku: parsedMapping[selectedVariantId],
+                            channelResponseTime : channelResponseTime,
+                            shopifyApiTime : shopifyApiTime,
+                            overallTimeEnd : overallTimeEnd,
+                            serviceabilityAPITime : serviceabilityAPITime,
+                            eddAPITime : eddAPITime,
+                            extraData : extraData
+                          }
+                          fetch(
+                            "/apps/clickpost-edd-proxy/log-response-times",
+                            {
+                              method: "POST",
+                              headers: {
+                                accept: "application/json",
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify([
+                                logData
+                              ]),
+                            }
+                          ) 
+                          .catch((error) => {
+                            console.log(error);
+                          });
+                        }
+                      sessionStorage.setItem("drop_pincode", dropPincode);
+
+                      responseFail.style.display = "none";
+                      responseSuccess.style.display = "block";
+                      var finalEdd = '';
+                      var date = Date.now();
+                      var dateCurrent = new Date(date);
+                      var afterCutoff = false;
+                      var max = data.result[0].predicted_sla_max + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                      if (afterCutoff) max = max + 1;
+                      var max_sla_event = max;
+                      var min_sla_event = 0;  
+                            
+                      max = new Date(date + parseInt(max * 86400000));
+                      var maxDate = max.getDate();
+                      var min = data.result[0].predicted_sla_min + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                      if (afterCutoff) min = min + 1;
+                      min_sla_event = min;
+
+                      const responseEDD = document.getElementById("response-edd");
+                      const responseEDDStyles = window.getComputedStyle(responseEDD);
+                      const inheritedColor = responseEDDStyles.color;
+                      const maxDateText = maxDateAdditionalText && maxDateAdditionalText.trim() ?
+                      `<span style="color: ${inheritedColor};">${' and ' + maxDateAdditionalText}</span> `: '';
+                      
+                      if (dateRange == 'true') {
+                        min = new Date(date + parseInt(min * 86400000));
+                        var minDate = min.getDate();
+                        if(min.getDate() == max.getDate() && min.getMonth() == max.getMonth()) {
+                          finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                          responseEddText = "Delivery by"
+                        }
+                        else if (min.getMonth() == max.getMonth()) {
+                          finalEdd = `<span class="successful-response">` + 
+                              minDate + '<sup>' + nth(minDate) + '</sup>' + 
+                              (maxDateText.trim() ? ' ' + maxDateText : ' and') +  
+                              ' ' + maxDate + "<sup>" + nth(maxDate) + "</sup> " + monthMap[max.getMonth()] + 
+                              `</span>`;
+                        } else {
+                          finalEdd = `<span class="successful-response">` + 
+                              minDate + '<sup>' + nth(minDate) + '</sup> ' + monthMap[min.getMonth()] + 
+                              (maxDateText.trim() ? ' ' + maxDateText : ' and') +  
+                              ' ' + maxDate + "<sup>" + nth(maxDate) + "</sup> " + monthMap[max.getMonth()] + 
+                              `</span>`;
+                          }
+                        }
+                      else {
+                        if (onlyMin == true || onlyMin != "false") {
+                          min = new Date(date + parseInt(min * 86400000));
+                          var minDate = min.getDate();
+                          finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ' ' + monthMap[min.getMonth()] + `</span>`;
+                        }
+                        else finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                      }
+                      gaConfigIds.forEach(gaId => {
+                        gtagClickpost('event', 'Pincode_Check_Successful', {
+                          event_category: 'Event',
+                          event_label: 'Pincode Check Successful',
+                          pincode: dropPincode,
+                          max_sla: max_sla_event,
+                          min_sla: min_sla_event,
+                          shop_name: shopName,  
+                          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                          });
+                      });
+                      sendEDDConversionAttributeIfNeeded({ 'min_sla': min_sla_event, "max_sla": max_sla_event });
+                      responseEDD.innerHTML = responseEddText + " " + finalEdd;
+
+                      if (enableEddOverride == 'true' && eddOverrideThreshold != '' && eddOverrideThreshold <= max_sla_event) {
+                        responseEDD.innerHTML = eddOverrideText;
+                      }
+                      
+                      cod = cod ? `<span class="successful-response">available</span>` : '<span style="color:red">not available</span>';
+                      document.getElementById("response-cod").innerHTML = responseCodText + " " + cod;
+                      submitButton.classList.toggle("button--loading");
+                      submitButton.disabled = false;
+                      if (countdownElement && method == 'single') {
+                        const nowClickpost = new Date()
+                        const targetHours = cutoffTime
+                        const targetTimeToday = new Date(nowClickpost.getFullYear(), nowClickpost.getMonth(), nowClickpost.getDate(), targetHours).getTime();
+                        const targetTimeTomorrow = targetTimeToday + (24 * 60 * 60 * 1000)
+                        const timeToday = targetTimeToday - (nowClickpost.getTime())
+
+                        if (timeToday > 0) {
+                          const countdownInterval = setInterval(() => {
+                            const currentTime = new Date().getTime()
+                            const timeRemaining = targetTimeToday - currentTime
+                            if (timeRemaining > 0) {
+                              const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                              const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                              const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                              countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                            }
+                            else {
+                              countdownElement.innerHTML = '00:00:00';
+                              clearInterval(countdownInterval); // Stop the countdown
+                            }
+                          }, 1000)
+                        }
+                        else {
+                          const countdownIntervalTomorrow = setInterval(() => {
+                            const currentTime = new Date().getTime()
+                            const timeRemainingTomorrow = targetTimeTomorrow - currentTime
+                            if (timeRemainingTomorrow > 0) {
+                              const hours = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                              const minutes = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                              const seconds = Math.floor((timeRemainingTomorrow % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                              countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                            }
+                            else {
+                              countdownElement.innerHTML = '00:00:00';
+                              clearInterval(countdownIntervalTomorrow); // Stop the countdown
+                            }
+                          }, 1000);
+                        }
+                        countdownElement.style.display = "block";
+                      }
+                    })
+                    .catch((error) => {
+                      submitButton.classList.toggle("button--loading");
+                      submitButton.disabled = false;
+                      responseFail.style.display = "block";
+                      responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+                      gaConfigIds.forEach(gaId => {
+                        gtagClickpost('event', 'edd_fetch_failed', {
+                          event_category: 'errors',
+                          event_label: 'Failed to retrieve delivery date',
+                          error_message: error || 'Unknown error',
+                          shop_name: shopName,
+                          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                          });
+                      });
+                      console.log(error);
+                    });
+                } else {
+                  submitButton.classList.toggle("button--loading");
+                  submitButton.disabled = false;
+                  responseSuccess.style.display = "none";
+                  responseFail.style.display = "block";
+                  responseFail.innerHTML = unservicableText;
+                  gaConfigIds.forEach(gaId => {
+                    gtagClickpost('event', 'Pincode_UnServiceable', {
+                      event_category: 'Event',
+                      event_label: 'Pincode Unserviceable',
+                      pincode: dropPincode,
+                      error_message: unservicableText,
+                      shop_name : shopName,
+                      send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                      });
+                  });
+                  
+                }
+              })
+              .catch((error) => {
+                submitButton.classList.toggle("button--loading");
+                submitButton.disabled = false;
+                responseFail.style.display = "block";
+                responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+                gaConfigIds.forEach(gaId => {
+                  gtagClickpost('event', 'Pincode_UnServiceable', {
+                    event_category: 'Event',
+                    event_label: 'Pincode Unserviceable',
+                    pincode: dropPincode,
+                    error_message: unservicableText,
+                    shop_name: shopName,
+                    send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                    });
+                });
+                console.log(error);
+              });
+          }
+          else {
+            submitButton.classList.toggle("button--loading");
+            submitButton.disabled = false;
+            responseFail.style.display = "block";
+            responseFail.innerHTML = `Pincode not servicable`;
+            gaConfigIds.forEach(gaId => {
+              gtagClickpost('event', 'Pincode_UnServiceable', {
+                event_category: 'Event',
+                event_label: 'Pincode Unserviceable',
+                pincode: dropPincode,
+                error_message: unservicableText,
+                shop_name: shopName,
+                send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                });
+            });
+            console.log(data.error);
+          }
+        })
+        .catch((error) => {
+          submitButton.classList.toggle("button--loading");
+          submitButton.disabled = false;
+          responseFail.style.display = "block";
+          responseFail.innerHTML = `Unable to retrieve estimated delivery date.`; 
+          gaConfigIds.forEach(gaId => {
+            gtagClickpost('event', 'edd_fetch_failed', {
+              event_category: 'errors',
+              event_label: 'Failed to retrieve delivery date',
+              error_message: error || 'Unknown error',
+              shop_name: shopName,
+              send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+              });
+          });
+          console.log(error);
+        });      
+    }
+  }
+
+  else if (clickpostIntegration && clickpostIntegration !== 'false' && wmsClickpostIntegration) {
+    gaConfigIds.forEach(gaId => {
+        gtagClickpost('event', 'Pincode_Check_Click', {
+          event_category: 'Click',
+          event_label: 'Check Pincode Button',
+          pincode: dropPincode,
+          shop_name: shopName,     
+          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+          });
+      }); 
+      var variantId =
+        document.querySelector("product-form form")
+          ? document.querySelector("product-form form").querySelector('input[name="id"]').value :
+          document.querySelector("form[action='/cart/add']")
+            ? document.querySelector("form[action='/cart/add']").querySelector("input[name='id']")?.value :
+            document.querySelector(`#product-select-${productId}`)
+              ? document.querySelector(`#product-select-${productId}`).value :
+              document.querySelector('.variant-options-listItem.is-selected')
+                ? document.querySelector('.variant-options-listItem.is-selected').dataset.variant
+                : "";
+      if (typeof(variantId) === 'undefined' || variantId == '' || variantId === null) {
+        const urlParams = new URLSearchParams(window.location.search);
+        variantId = urlParams.get('variant')
+        if (!variantId) {
+          variantId = defaultVariant
+        }
+      }
+      
+      if (availabilityParsedMapping[variantId] == false) {
+          responseFail.style.display = "block";
+          responseFail.innerHTML = `out of stock`;
+          submitButton.classList.toggle("button--loading");
+          submitButton.disabled = false;
+          gaConfigIds.forEach(gaId => {
+            gtagClickpost('event', 'Pincode_check_failed', {
+              event_category: 'Event',
+              event_label: 'Pincode Check Failed',
+              pincode: dropPincode,
+              shop_name: shopName,
+              error_message: 'Out Of Stock',     
+              send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+              });
+          }); 
+      }
+      else {
+        cod = true;
+        console.log(variantId)
+        const eddData = {
+          dropPincode: dropPincode,
+          variantId: variantId,
+          sku: parsedMapping[variantId],
+          metafield: metafieldsParsedMapping[variantId] != "" ? metafieldsParsedMapping[variantId] : 0,
+          clickpost_wms_integration: wmsClickpostIntegration
+        }
+        fetch(
+          "/apps/clickpost-edd-proxy/clickpost-integration",
+          {
+            method: "POST",
+            headers: {
+              accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify([
+              eddData
+            ]),
+          }
+        )
+          .then((response) => 
+            response.json()
+      )
+          .then((data) => {
+            console.log("dataaaaa", data)
+            if (data.status == 'success') {
+              sessionStorage.setItem("drop_pincode", dropPincode);
+                responseFail.style.display = "none";
+                responseSuccess.style.display = "block";
+                var finalEdd = '';
+                var date = Date.now();
+                var dateCurrent = new Date(date);
+                var afterCutoff = false;
+                var max = data.data.max_sla + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                if (afterCutoff) max = max + 1;
+                var max_sla_event = max;
+                var min_sla_event = 0;  
+                      
+                max = new Date(date + parseInt(max * 86400000));
+                var maxDate = max.getDate();
+                var min = data.data.min_sla + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                if (afterCutoff) min = min + 1;
+                min_sla_event = min;
+
+                const responseEDD = document.getElementById("response-edd");
+                const responseEDDStyles = window.getComputedStyle(responseEDD);
+                const inheritedColor = responseEDDStyles.color;
+                const maxDateText = maxDateAdditionalText && maxDateAdditionalText.trim() ?
+                 `<span style="color: ${inheritedColor};">${' and ' + maxDateAdditionalText}</span> `: '';
+                
+                if (dateRange == 'true') {
+                  min = new Date(date + parseInt(min * 86400000));
+                  var minDate = min.getDate();
+                  if(min.getDate() == max.getDate() && min.getMonth() == max.getMonth()) {
+                     if (dateFormat == 3) {
+                        finalEdd = `<span class="successful-response">${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}, ${DayMap[max.getDay()]}</span>`;
+                      } else {
+                        finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                      }
+                      responseEddText = "Delivery by";
+                  }
+                  
+                  else if (min.getMonth() == max.getMonth()) {
+                    if (dateFormat == 3) {
+                      finalEdd = `<span class="successful-response">
+                        ${minDate}<sup>${nth(minDate)}</sup>${monthMap[min.getMonth()]}, ${DayMap[min.getDay()]} - 
+                        ${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}, ${DayMap[max.getDay()]}
+                      </span>`;
+                    } else {
+                      finalEdd = `<span class="successful-response">
+                        ${minDate}<sup>${nth(minDate)}</sup>${maxDateText.trim() ? ' ' + maxDateText : ' and'} 
+                        ${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}
+                      </span>`;
+                    }
+                   } else {
+                    if (dateFormat == 3) {
+                      finalEdd = `<span class="successful-response">
+                        ${minDate}<sup>${nth(minDate)}</sup> ${monthMap[min.getMonth()]}, ${DayMap[min.getDay()]} - 
+                        ${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}, ${DayMap[max.getDay()]}
+                      </span>`;
+                    } else {
+                      finalEdd = `<span class="successful-response">` + 
+                        minDate + '<sup>' + nth(minDate) + '</sup> ' + monthMap[min.getMonth()] + 
+                        (maxDateText.trim() ? ' ' + maxDateText : ' and') +  
+                        ' ' + maxDate + "<sup>" + nth(maxDate) + "</sup> " + monthMap[max.getMonth()] + 
+                        `</span>`;
+                      }
+                    }
+                
+                }
+                else {
+                  if (onlyMin == true || onlyMin != "false") {
+                    min = new Date(date + parseInt(min * 86400000));
+                    var minDate = min.getDate();
+                    if (dateFormat == 3) {
+                      finalEdd = `<span class="successful-response">
+                        ${minDate}<sup>${nth(minDate)}</sup> ${monthMap[min.getMonth()]}, ${DayMap[min.getDay()]}
+                      </span>`;
+                    } else {
+                      finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ' ' + monthMap[min.getMonth()] + `</span>`;
+                    }
+                  }
+                  else {
+                    if (dateFormat == 3) {
+                      finalEdd = `<span class="successful-response">
+                        ${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}, ${DayMap[max.getDay()]}
+                      </span>`;
+                    } else {
+                      finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                    }
+                }
+              }
+                gaConfigIds.forEach(gaId => {
+                  gtagClickpost('event', 'Pincode_Check_Successful', {
+                    event_category: 'Event',
+                    event_label: 'Pincode Check Successful',
+                    pincode: dropPincode,
+                    max_sla: max_sla_event,
+                    min_sla: min_sla_event,
+                    shop_name: shopName,  
+                    send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                    });
+                });
+                sendEDDConversionAttributeIfNeeded({ 'min_sla': min_sla_event, "max_sla": max_sla_event });
+                responseEDD.innerHTML = responseEddText + " " + finalEdd;
+                
+                if (enableEddOverride == 'true' && eddOverrideThreshold != '' && eddOverrideThreshold <= max_sla_event) {
+                  responseEDD.innerHTML = eddOverrideText;
+                }
+                
+                cod = cod ? `<span class="successful-response">available</span>` : '<span style="color:red">not available</span>';
+                document.getElementById("response-cod").innerHTML = responseCodText + " " + cod;
+                submitButton.classList.toggle("button--loading");
+                submitButton.disabled = false;
+                if (countdownElement && method == 'single') {
+                  const nowClickpost = new Date()
+                  const targetHours = cutoffTime
+                  const targetTimeToday = new Date(nowClickpost.getFullYear(), nowClickpost.getMonth(), nowClickpost.getDate(), targetHours).getTime();
+                  const targetTimeTomorrow = targetTimeToday + (24 * 60 * 60 * 1000)
+                  const timeToday = targetTimeToday - (nowClickpost.getTime())
+
+                  if (timeToday > 0) {
+                    const countdownInterval = setInterval(() => {
+                      const currentTime = new Date().getTime()
+                      const timeRemaining = targetTimeToday - currentTime
+                      if (timeRemaining > 0) {
+                        const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                        const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                        const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                        countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                      }
+                      else {
+                        countdownElement.innerHTML = '00:00:00';
+                        clearInterval(countdownInterval); // Stop the countdown
+                      }
+                    }, 1000)
+                  }
+                  else {
+                    const countdownIntervalTomorrow = setInterval(() => {
+                      const currentTime = new Date().getTime()
+                      const timeRemainingTomorrow = targetTimeTomorrow - currentTime
+                      if (timeRemainingTomorrow > 0) {
+                        const hours = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                        const minutes = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                        const seconds = Math.floor((timeRemainingTomorrow % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                        countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                      }
+                      else {
+                        countdownElement.innerHTML = '00:00:00';
+                        clearInterval(countdownIntervalTomorrow); // Stop the countdown
+                      }
+                    }, 1000);
+                  }
+                  countdownElement.style.display = "block";
+                }
+            }
+            else {
+              submitButton.classList.toggle("button--loading");
+              submitButton.disabled = false;
+              responseFail.style.display = "block";
+              responseFail.innerHTML = `Pincode not servicable`;
+              gaConfigIds.forEach(gaId => {
+                gtagClickpost('event', 'Pincode_UnServiceable', {
+                  event_category: 'Event',
+                  event_label: 'Pincode Unserviceable',
+                  pincode: dropPincode,
+                  error_message: 'Pincode not servicable',
+                  shop_name : shopName,
+                  send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                  });
+              });
+            }
+          })
+          .catch((error) => {
+            submitButton.classList.toggle("button--loading");
+            submitButton.disabled = false;
+            responseFail.style.display = "block";
+            responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+            gaConfigIds.forEach(gaId => {
+              gtagClickpost('event', 'edd_fetch_failed', {
+                event_category: 'errors',
+                event_label: 'Failed to retrieve delivery date',
+                error_message: error || 'Unknown error',
+                shop_name: shopName,
+                send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                });
+            });
+            console.log(error);
+  
+          });
+      }
+  }
+
+  else if (ezedd) {
+    if (ezedd == 'true') {
+      gaConfigIds.forEach(gaId => {
+        gtagClickpost('event', 'Pincode_Check_Click', {
+          event_category: 'Click',
+          event_label: 'Check Pincode Button',
+          pincode: dropPincode,
+          shop_name: shopName,     
+          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+          });
+      }); 
+      var variantId =
+        document.querySelector("product-form form")
+          ? document.querySelector("product-form form").querySelector('input[name="id"]').value :
+          document.querySelector("form[action='/cart/add']")
+            ? document.querySelector("form[action='/cart/add']").querySelector("input[name='id']")?.value :
+            document.querySelector(`#product-select-${productId}`)
+              ? document.querySelector(`#product-select-${productId}`).value :
+              document.querySelector('.variant-options-listItem.is-selected')
+                ? document.querySelector('.variant-options-listItem.is-selected').dataset.variant
+                : "";
+      if (typeof(variantId) === 'undefined' || variantId == '' || variantId === null) {
+        const urlParams = new URLSearchParams(window.location.search);
+        variantId = urlParams.get('variant')
+        if (!variantId) {
+          variantId = defaultVariant
+        }
+      }
+      
+      if (availabilityParsedMapping[variantId] == false) {
+          responseFail.style.display = "block";
+          responseFail.innerHTML = `out of stock`;
+          submitButton.classList.toggle("button--loading");
+          submitButton.disabled = false;
+          gaConfigIds.forEach(gaId => {
+            gtagClickpost('event', 'Pincode_check_failed', {
+              event_category: 'Event',
+              event_label: 'Pincode Check Failed',
+              pincode: dropPincode,
+              shop_name: shopName,
+              error_message: 'Out Of Stock',     
+              send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+              });
+          }); 
+      }
+      else {
+        cod = true;
+        console.log(variantId)
+        const eddData = {
+          dropPincode: dropPincode,
+          variantId: variantId,
+          sku: parsedMapping[variantId],
+          metafield: metafieldsParsedMapping[variantId] != "" ? metafieldsParsedMapping[variantId] : 0,
+        }
+        fetch(
+          "/apps/clickpost-edd-proxy/ez-edd",
+          {
+            method: "POST",
+            headers: {
+              accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify([
+              eddData
+            ]),
+          }
+        )
+          .then((response) => response.json())
+          .then((data) => {
+            console.log(data)
+            if (data.res == true) {
+              sessionStorage.setItem("drop_pincode", dropPincode);
+              responseFail.style.display = "none";
+              responseSuccess.style.display = "block";
+              var finalEdd = '';
+  
+              gaConfigIds.forEach(gaId => {
+                gtagClickpost('event', 'Pincode_Serviceable', {
+                  event_category: 'Event',
+                  event_label: 'Pincode serviceable',
+                  pincode: dropPincode,
+                  shop_name: shopName,
+                  send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                  });
+              });
+              var dateCurrent = new Date();
+              var ez_sla_max = new Date(data.data.max)
+              const sla_max = Math.ceil((ez_sla_max.getTime() - dateCurrent.getTime()) / (1000 * 60 * 60 * 24));
+              var ez_sla_min = new Date(data.data.min)
+              const sla_min = Math.ceil((ez_sla_min.getTime() - dateCurrent.getTime()) / (1000 * 60 * 60 * 24));
+              console.log(sla_min, sla_max)
+  
+              var afterCutoff = false;
+              var max = sla_max + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+              if (afterCutoff) max = max + 1;
+              var max_sla_event = max;
+              var min_sla_event = 0;
+              max = new Date(dateCurrent.getTime() + parseInt(max * 86400000));
+              var maxDate = max.getDate();
+              var min = sla_min + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+              if (afterCutoff) min = min + 1;
+              min_sla_event = min;
+              if (dateRange == 'true') {
+                min = new Date(dateCurrent.getTime() + parseInt(min * 86400000));
+                var minDate = min.getDate();
+                if (min.getDate() == max.getDate() && min.getMonth() == max.getMonth()) {
+                  finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                  responseEddText = "Delivery by"
+                }
+                else if (min.getMonth() == max.getMonth()) finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ` and ` + maxDate + "<sup>" + nth(maxDate) + "</sup>" + ' ' + monthMap[max.getMonth()] + `</span>`;
+                else finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ' ' + monthMap[min.getMonth()] + ` and ` + maxDate + "<sup>" + nth(maxDate) + "</sup>" + ' ' + monthMap[max.getMonth()] + `</span>`;
+              }
+              else {
+                if (dateFormat == 3) {
+                  finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + ', ' + DayMap[max.getDay()] + `</span>`;
+                }
+                else {
+                  finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                }
+              }
+              gaConfigIds.forEach(gaId => {
+                gtagClickpost('event', 'Pincode_Check_Successful', {
+                  event_category: 'Event',
+                  event_label: 'Pincode Check Successful',
+                  pincode: dropPincode,
+                  max_sla: max_sla_event,
+                  min_sla: min_sla_event,
+                  shop_name: shopName,  
+                  send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                  });
+              });
+              sendEDDConversionAttributeIfNeeded({ 'min_sla': min_sla_event, "max_sla": max_sla_event });
+  
+              const responseEDD = document.getElementById("response-edd");
+              responseEDD.innerHTML = responseEddText + " " + finalEdd;
+
+              if (enableEddOverride == 'true' && eddOverrideThreshold != '' && eddOverrideThreshold <= max_sla_event) {
+                responseEDD.innerHTML = eddOverrideText;
+              }
+              cod = cod ? `<span class="successful-response">available</span>` : '<span style="color:red">not available</span>';
+              document.getElementById("response-cod").innerHTML = responseCodText + " " + cod;
+              submitButton.classList.toggle("button--loading");
+              submitButton.disabled = false;
+              if (countdownElement && method == 'single') {
+                const nowClickpost = new Date()
+                const targetHours = cutoffTime
+                const targetTimeToday = new Date(nowClickpost.getFullYear(), nowClickpost.getMonth(), nowClickpost.getDate(), targetHours).getTime();
+                const targetTimeTomorrow = targetTimeToday + (24 * 60 * 60 * 1000)
+                const timeToday = targetTimeToday - (nowClickpost.getTime())
+  
+                if (timeToday > 0) {
+                  const countdownInterval = setInterval(() => {
+                    const currentTime = new Date().getTime()
+                    const timeRemaining = targetTimeToday - currentTime
+                    if (timeRemaining > 0) {
+                      const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                      const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                      const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                      countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                    }
+                    else {
+                      countdownElement.innerHTML = '00:00:00';
+                      clearInterval(countdownInterval); // Stop the countdown
+                    }
+                  }, 1000)
+                }
+                else {
+                  const countdownIntervalTomorrow = setInterval(() => {
+                    const currentTime = new Date().getTime()
+                    const timeRemainingTomorrow = targetTimeTomorrow - currentTime
+                    if (timeRemainingTomorrow > 0) {
+                      const hours = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                      const minutes = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                      const seconds = Math.floor((timeRemainingTomorrow % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                      countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                    }
+                    else {
+                      countdownElement.innerHTML = '00:00:00';
+                      clearInterval(countdownIntervalTomorrow); // Stop the countdown
+                    }
+                  }, 1000);
+                }
+                countdownElement.style.display = "block";
+              }
+            }
+            else {
+              submitButton.classList.toggle("button--loading");
+              submitButton.disabled = false;
+              responseFail.style.display = "block";
+              responseFail.innerHTML = `Pincode not servicable`;
+              gaConfigIds.forEach(gaId => {
+                gtagClickpost('event', 'Pincode_UnServiceable', {
+                  event_category: 'Event',
+                  event_label: 'Pincode Unserviceable',
+                  pincode: dropPincode,
+                  error_message: 'Pincode not servicable',
+                  shop_name : shopName,
+                  send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                  });
+              });
+            }
+          })
+          .catch((error) => {
+            submitButton.classList.toggle("button--loading");
+            submitButton.disabled = false;
+            responseFail.style.display = "block";
+            responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+            gaConfigIds.forEach(gaId => {
+              gtagClickpost('event', 'edd_fetch_failed', {
+                event_category: 'errors',
+                event_label: 'Failed to retrieve delivery date',
+                error_message: error || 'Unknown error',
+                shop_name: shopName,
+                send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                });
+            });
+            console.log(error);
+  
+          });
+      }
+    }
+    else {
+      gaConfigIds.forEach(gaId => {
+        gtagClickpost('event', 'Pincode_Check_Click', {
+          event_category: 'Click',
+          event_label: 'Check Pincode Button',
+          pincode: dropPincode,
+          shop_name: shopName,     
+          send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+          });
+      });
+      console.log("useStaticMultiplePincodes", useStaticMultiplePincodes)
+      var currentSelectedVariantId = document.querySelector('.product-variant-id')?.value;
+      const urlParams = new URLSearchParams(window.location.search);
+      const variantFromUrl = urlParams.get('variant');
+      var selectedVariantId = currentSelectedVariantId || variantFromUrl || productVariantId;
+      var availabilityFetchPath = "/apps/clickpost-edd-proxy/availability";
+      var availabilityFetchBody = [
+        {
+          dropPincode: dropPincode,
+          pickupPincode: pickupPincode,
+          productId: productId,
+          method: method,
+          variantId: selectedVariantId,
+          enable_variant_filtering: enableVariantFiltering,
+          ext: true
+        },
+      ];
+      if (useStaticMultiplePincodes) {
+        availabilityFetchPath = "/apps/clickpost-edd-proxy/increff-availability";
+        availabilityFetchBody = [
+          {
+            dropPincode: dropPincode,
+            pickupPincode: staticMultiplePincodesList,
+            productId: productId,
+            method: method,
+            ext: true
+          },
+        ];
+      }
+      fetch(
+        availabilityFetchPath,
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(availabilityFetchBody),
+        }
+      )
+        .then((response) => response.json())
+        .then((data) => {
+          console.log(data)
+          if (data.availablePincodes.length > 0) {
+            cod = data.cod;
+            const eddData = {
+              dropPincode: dropPincode,
+              pickupPincodes: data.availablePincodes,
+              productId: productId,
+              method: method,
+              pincodeCutoffMap: data.pincodeCutoffMap,
+              ext: true
+            }
+            fetch(
+              "/apps/clickpost-edd-proxy/edd",
+              {
+                method: "POST",
+                headers: {
+                  accept: "application/json",
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify([
+                  eddData
+                ]),
+              }
+            )
+              .then((response) => response.json())
+              .then((data) => {
+                console.log(data)
+                sessionStorage.setItem("drop_pincode", dropPincode);
+                responseFail.style.display = "none";
+                responseSuccess.style.display = "block";
+                var finalEdd = '';
+                var date = Date.now();
+                var dateCurrent = new Date(date);
+                var afterCutoff = false;
+                var max = data.result[0].predicted_sla_max + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                if (afterCutoff) max = max + 1;
+                var max_sla_event = max;
+                var min_sla_event = 0;  
+                      
+                max = new Date(date + parseInt(max * 86400000));
+                var maxDate = max.getDate();
+                var min = data.result[0].predicted_sla_min + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+                if (afterCutoff) min = min + 1;
+                min_sla_event = min;
+
+                const responseEDD = document.getElementById("response-edd");
+                const responseEDDStyles = window.getComputedStyle(responseEDD);
+                const inheritedColor = responseEDDStyles.color;
+                const maxDateText = maxDateAdditionalText && maxDateAdditionalText.trim() ?
+                 `<span style="color: ${inheritedColor};">${' and ' + maxDateAdditionalText}</span> `: '';
+                
+                if (dateRange == 'true') {
+                  min = new Date(date + parseInt(min * 86400000));
+                  var minDate = min.getDate();
+                  if(min.getDate() == max.getDate() && min.getMonth() == max.getMonth()) {
+                     if (dateFormat == 3) {
+                        finalEdd = `<span class="successful-response">${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}, ${DayMap[max.getDay()]}</span>`;
+                      } else {
+                        finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                      }
+                      responseEddText = "Delivery by";
+                  }
+                  
+                  else if (min.getMonth() == max.getMonth()) {
+                    if (dateFormat == 3) {
+                      finalEdd = `<span class="successful-response">
+                        ${minDate}<sup>${nth(minDate)}</sup>${monthMap[min.getMonth()]}, ${DayMap[min.getDay()]} - 
+                        ${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}, ${DayMap[max.getDay()]}
+                      </span>`;
+                    } else {
+                      finalEdd = `<span class="successful-response">
+                        ${minDate}<sup>${nth(minDate)}</sup>${maxDateText.trim() ? ' ' + maxDateText : ' and'} 
+                        ${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}
+                      </span>`;
+                    }
+                   } else {
+                    if (dateFormat == 3) {
+                      finalEdd = `<span class="successful-response">
+                        ${minDate}<sup>${nth(minDate)}</sup> ${monthMap[min.getMonth()]}, ${DayMap[min.getDay()]} - 
+                        ${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}, ${DayMap[max.getDay()]}
+                      </span>`;
+                    } else {
+                      finalEdd = `<span class="successful-response">` + 
+                        minDate + '<sup>' + nth(minDate) + '</sup> ' + monthMap[min.getMonth()] + 
+                        (maxDateText.trim() ? ' ' + maxDateText : ' and') +  
+                        ' ' + maxDate + "<sup>" + nth(maxDate) + "</sup> " + monthMap[max.getMonth()] + 
+                        `</span>`;
+                      }
+                    }
+                
+                }
+                else {
+                  if (onlyMin == true || onlyMin != "false") {
+                    min = new Date(date + parseInt(min * 86400000));
+                    var minDate = min.getDate();
+                    if (dateFormat == 3) {
+                      finalEdd = `<span class="successful-response">
+                        ${minDate}<sup>${nth(minDate)}</sup> ${monthMap[min.getMonth()]}, ${DayMap[min.getDay()]}
+                      </span>`;
+                    } else {
+                      finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ' ' + monthMap[min.getMonth()] + `</span>`;
+                    }
+                  }
+                  else {
+                    if (dateFormat == 3) {
+                      finalEdd = `<span class="successful-response">
+                        ${maxDate}<sup>${nth(maxDate)}</sup> ${monthMap[max.getMonth()]}, ${DayMap[max.getDay()]}
+                      </span>`;
+                    } else {
+                      finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                    }
+                }
+              }
+                gaConfigIds.forEach(gaId => {
+                  gtagClickpost('event', 'Pincode_Check_Successful', {
+                    event_category: 'Event',
+                    event_label: 'Pincode Check Successful',
+                    pincode: dropPincode,
+                    max_sla: max_sla_event,
+                    min_sla: min_sla_event,
+                    shop_name: shopName,  
+                    send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                    });
+                });
+                sendEDDConversionAttributeIfNeeded({ 'min_sla': min_sla_event, "max_sla": max_sla_event });
+                responseEDD.innerHTML = responseEddText + " " + finalEdd;
+                
+                if (enableEddOverride == 'true' && eddOverrideThreshold != '' && eddOverrideThreshold <= max_sla_event) {
+                  responseEDD.innerHTML = eddOverrideText;
+                }
+                
+                cod = cod ? `<span class="successful-response">available</span>` : '<span style="color:red">not available</span>';
+                document.getElementById("response-cod").innerHTML = responseCodText + " " + cod;
+                submitButton.classList.toggle("button--loading");
+                submitButton.disabled = false;
+                if (countdownElement && method == 'single') {
+                  const nowClickpost = new Date()
+                  const targetHours = cutoffTime
+                  const targetTimeToday = new Date(nowClickpost.getFullYear(), nowClickpost.getMonth(), nowClickpost.getDate(), targetHours).getTime();
+                  const targetTimeTomorrow = targetTimeToday + (24 * 60 * 60 * 1000)
+                  const timeToday = targetTimeToday - (nowClickpost.getTime())
+
+                  if (timeToday > 0) {
+                    const countdownInterval = setInterval(() => {
+                      const currentTime = new Date().getTime()
+                      const timeRemaining = targetTimeToday - currentTime
+                      if (timeRemaining > 0) {
+                        const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                        const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                        const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                        countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                      }
+                      else {
+                        countdownElement.innerHTML = '00:00:00';
+                        clearInterval(countdownInterval); // Stop the countdown
+                      }
+                    }, 1000)
+                  }
+                  else {
+                    const countdownIntervalTomorrow = setInterval(() => {
+                      const currentTime = new Date().getTime()
+                      const timeRemainingTomorrow = targetTimeTomorrow - currentTime
+                      if (timeRemainingTomorrow > 0) {
+                        const hours = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                        const minutes = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                        const seconds = Math.floor((timeRemainingTomorrow % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                        countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                      }
+                      else {
+                        countdownElement.innerHTML = '00:00:00';
+                        clearInterval(countdownIntervalTomorrow); // Stop the countdown
+                      }
+                    }, 1000);
+                  }
+                  countdownElement.style.display = "block";
+                }
+              })
+              .catch((error) => {
+                submitButton.classList.toggle("button--loading");
+                submitButton.disabled = false;
+                responseFail.style.display = "block";
+                responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+                gaConfigIds.forEach(gaId => {
+                  gtagClickpost('event', 'edd_fetch_failed', {
+                    event_category: 'errors',
+                    event_label: 'Failed to retrieve delivery date',
+                    error_message: error || 'Unknown error',
+                    shop_name: shopName,
+                    send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                    });
+                });
+                console.log(error);
+              });
+          } else {
+            submitButton.classList.toggle("button--loading");
+            submitButton.disabled = false;
+            responseSuccess.style.display = "none";
+            responseFail.style.display = "block";
+            responseFail.innerHTML = unservicableText;
+            gaConfigIds.forEach(gaId => {
+              gtagClickpost('event', 'Pincode_UnServiceable', {
+                event_category: 'Event',
+                event_label: 'Pincode Unserviceable',
+                pincode: dropPincode,
+                error_message: unservicableText,
+                shop_name : shopName,
+                send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                });
+            });
+          }
+        })
+        .catch((error) => {
+          submitButton.classList.toggle("button--loading");
+          submitButton.disabled = false;
+          responseFail.style.display = "block";
+          responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+          gaConfigIds.forEach(gaId => {
+            gtagClickpost('event', 'edd_fetch_failed', {
+              event_category: 'errors',
+              event_label: 'Failed to retrieve delivery date',
+              error_message: error || 'Unknown error',
+              shop_name: shopName,
+              send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+              });
+          });
+          console.log(error);
+        });
+    }
+  }
+  else {
+    gaConfigIds.forEach(gaId => {
+      gtagClickpost('event', 'Pincode_Check_Click', {
+        event_category: 'Click',
+        event_label: 'Check Pincode Button',
+        pincode: dropPincode,
+        shop_name: shopName,     
+        send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+        });
+    }); 
+    var availabilityFetchPathNoVariant = "/apps/clickpost-edd-proxy/availability";
+    var availabilityFetchBodyNoVariant = [
+      {
+        dropPincode: dropPincode,
+        pickupPincode: pickupPincode,
+        productId: productId,
+        method: method,
+        ext: true
+      },
+    ];
+    if (useStaticMultiplePincodes) {
+      availabilityFetchPathNoVariant = "/apps/clickpost-edd-proxy/increff-availability";
+      availabilityFetchBodyNoVariant = [
+        {
+          dropPincode: dropPincode,
+          pickupPincode: staticMultiplePincodesList,
+          productId: productId,
+          method: method,
+          ext: true
+        },
+      ];
+    }
+    fetch(
+      availabilityFetchPathNoVariant,
+      {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(availabilityFetchBodyNoVariant),
+      }
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        console.log(data)
+        if (data.availablePincodes.length > 0) {
+          cod = data.cod;
+          const eddData = {
+            dropPincode: dropPincode,
+            pickupPincodes: data.availablePincodes,
+            productId: productId,
+            method: method,
+            pincodeCutoffMap: data.pincodeCutoffMap,
+            ext: true
+          }
+          fetch(
+            "/apps/clickpost-edd-proxy/edd",
+            {
+              method: "POST",
+              headers: {
+                accept: "application/json",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify([
+                eddData
+              ]),
+            }
+          )
+            .then((response) => response.json())
+            .then((data) => {
+              console.log(data)
+              sessionStorage.setItem("drop_pincode", dropPincode);
+
+              responseFail.style.display = "none";
+              responseSuccess.style.display = "block";
+              var finalEdd = '';
+              var date = Date.now();
+              var dateCurrent = new Date(date);
+              var afterCutoff = false;
+              
+              var max = data.result[0].predicted_sla_max + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+              if (afterCutoff) max = max + 1;
+              var max_sla_event = max;
+              var min_sla_event = 0;  
+              max = new Date(date + parseInt(max * 86400000));
+              var maxDate = max.getDate();
+              var min = data.result[0].predicted_sla_min + parseInt(standardEdd) + parseInt(productEdd) + parseInt(collectionEdd) + parseInt(vendorEdd);
+              if (afterCutoff) min = min + 1;
+              min_sla_event = min;
+
+              const responseEDD = document.getElementById("response-edd");
+              const responseEDDStyles = window.getComputedStyle(responseEDD);
+              const inheritedColor = responseEDDStyles.color;
+              const maxDateText = maxDateAdditionalText && maxDateAdditionalText.trim() ?
+               `<span style="color: ${inheritedColor};">${' and ' + maxDateAdditionalText}</span> `: '';
+               
+              if (dateRange == 'true') {
+                // console.log(afterCutoff, min, parseInt(standardEdd), parseInt(productEdd), parseInt(collectionEdd), parseInt(vendorEdd))
+                min = new Date(date + parseInt(min * 86400000));
+                var minDate = min.getDate();
+                if (min.getDate() == max.getDate() && min.getMonth() == max.getMonth()) {
+                  finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+                  responseEddText = "Delivery by"
+                }
+                
+                else if (min.getMonth() == max.getMonth()) {
+                  finalEdd = `<span class="successful-response">` +
+                  minDate + '<sup>' + nth(minDate) + '</sup>' + (maxDateText.trim() ? ' ' + maxDateText : ' and') + 
+                      ' ' + maxDate + "<sup>" + nth(maxDate) + "</sup> " + monthMap[max.getMonth()] + 
+                      `</span>`;
+                } else {
+                  finalEdd = `<span class="successful-response">` + 
+                      minDate + '<sup>' + nth(minDate) + '</sup> ' + monthMap[min.getMonth()] + 
+                      (maxDateText.trim() ? ' ' + maxDateText : ' and') +  
+                      ' ' + maxDate + "<sup>" + nth(maxDate) + "</sup> " + monthMap[max.getMonth()] + 
+                      `</span>`;
+                  }              
+              
+              }
+              else {
+                if (onlyMin == true || onlyMin != false) {
+                  min = new Date(date + parseInt(min * 86400000));
+                  var minDate = min.getDate();
+                  finalEdd = `<span class="successful-response">` + minDate + '<sup>' + nth(minDate) + '</sup>' + ' ' + monthMap[min.getMonth()] + `</span>`;
+                }
+                else finalEdd = `<span class="successful-response">` + maxDate + '<sup>' + nth(maxDate) + '</sup>' + ' ' + monthMap[max.getMonth()] + `</span>`;
+              }
+              gaConfigIds.forEach(gaId => {
+                gtagClickpost('event', 'Pincode_Check_Successful', {
+                  event_category: 'Event',
+                  event_label: 'Pincode Check Successful',
+                  pincode: dropPincode,
+                  max_sla: max_sla_event,
+                  min_sla: min_sla_event,
+                  shop_name: shopName,  
+                  send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                  });
+              });
+              sendEDDConversionAttributeIfNeeded({ 'min_sla': min_sla_event, "max_sla": max_sla_event });
+              // const responseEDD = document.getElementById("response-edd");
+              responseEDD.innerHTML = responseEddText + " " + finalEdd;
+
+              if (enableEddOverride == 'true' && eddOverrideThreshold != '' && eddOverrideThreshold <= max_sla_event) {
+                responseEDD.innerHTML = eddOverrideText;
+              }
+              cod = cod ? `<span class="successful-response">available</span>` : '<span style="color:red">not available</span>';
+              document.getElementById("response-cod").innerHTML = responseCodText + " " + cod;
+              submitButton.classList.toggle("button--loading");
+              submitButton.disabled = false;
+              if (countdownElement && method == 'single') {
+                const nowClickpost = new Date()
+                const targetHours = cutoffTime
+                const targetTimeToday = new Date(nowClickpost.getFullYear(), nowClickpost.getMonth(), nowClickpost.getDate(), targetHours).getTime();
+                const targetTimeTomorrow = targetTimeToday + (24 * 60 * 60 * 1000)
+                const timeToday = targetTimeToday - (nowClickpost.getTime())
+
+                if (timeToday > 0) {
+                  const countdownInterval = setInterval(() => {
+                    const currentTime = new Date().getTime()
+                    const timeRemaining = targetTimeToday - currentTime
+                    if (timeRemaining > 0) {
+                      const hours = Math.floor((timeRemaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                      const minutes = Math.floor((timeRemaining % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                      const seconds = Math.floor((timeRemaining % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                      countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                    }
+                    else {
+                      countdownElement.innerHTML = '00:00:00';
+                      clearInterval(countdownInterval); // Stop the countdown
+                    }
+                  }, 1000)
+                }
+                else {
+                  const countdownIntervalTomorrow = setInterval(() => {
+                    const currentTime = new Date().getTime()
+                    const timeRemainingTomorrow = targetTimeTomorrow - currentTime
+                    if (timeRemainingTomorrow > 0) {
+                      const hours = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
+                      const minutes = Math.floor((timeRemainingTomorrow % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+                      const seconds = Math.floor((timeRemainingTomorrow % (1000 * 60)) / 1000).toString().padStart(2, '0');
+                      countdownElement.innerHTML = `Order within <span style='color:red'>${hours}:${minutes}:${seconds}</span>`;
+                    }
+                    else {
+                      countdownElement.innerHTML = '00:00:00';
+                      clearInterval(countdownIntervalTomorrow); // Stop the countdown
+                    }
+                  }, 1000);
+                }
+                countdownElement.style.display = "block";
+              }
+            })
+            .catch((error) => {
+              submitButton.classList.toggle("button--loading");
+              submitButton.disabled = false;
+              responseFail.style.display = "block";
+              responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+              gaConfigIds.forEach(gaId => {
+                gtagClickpost('event', 'edd_fetch_failed', {
+                  event_category: 'errors',
+                  event_label: 'Failed to retrieve delivery date',
+                  error_message: error || 'Unknown error',
+                  shop_name: shopName,
+                  send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+                  });
+              });
+              console.log(error);
+            });
+        } else {
+          submitButton.classList.toggle("button--loading");
+          submitButton.disabled = false;
+          responseSuccess.style.display = "none";
+          responseFail.style.display = "block";
+          responseFail.innerHTML = unservicableText;
+          gaConfigIds.forEach(gaId => {
+            gtagClickpost('event', 'Pincode_UnServiceable', {
+              event_category: 'Event',
+              event_label: 'Pincode Unserviceable',
+              pincode: dropPincode,
+              error_message: unservicableText,
+              shop_name : shopName,
+              send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+              });
+          });
+        }
+      })
+      .catch((error) => {
+        submitButton.classList.toggle("button--loading");
+        submitButton.disabled = false;
+        responseFail.style.display = "block";
+        responseFail.innerHTML = `Unable to retrieve estimated delivery date.`;
+        gaConfigIds.forEach(gaId => {
+          gtagClickpost('event', 'edd_fetch_failed', {
+            event_category: 'errors',
+            event_label: 'Failed to retrieve delivery date',
+            error_message: error || 'Unknown error',
+            shop_name: shopName,
+            send_to: gaId , shop_domain: clickpostShopDomain, product_title: productTitle
+            });
+        });
+        console.log(error);
+      });
+  }
+}
+window.addEventListener("load", (event) => {
+  // const dropPincode = sessionStorage.getItem("drop_pincode");
+  let dropPincode = false;
+  if (sessionStorage.getItem("drop_pincode") != null) {
+    dropPincode = sessionStorage.getItem("drop_pincode");
+  }
+  else {
+    dropPincode = customerSavedZipCode == "false" ? false : customerSavedZipCode;
+  }
+  if (dropPincode) {
+    console.log("dropPincode", dropPincode)
+    clickpostForm.querySelector('input[name="drop_pincode"]').value = dropPincode;
+    if (window.isproductAvailable == 'false') {
+      const responseFail = document.getElementById("response-error");
+      const responseSuccess = document.getElementById("response-success");
+      responseFail.style.display = "block";
+      responseSuccess.style.display = "none";
+      responseFail.innerHTML = `out of stock`;
+    } else {
+      fetchEdd();
+    }
+  }
+});
+
+async function sendEDDConversionAttributeIfNeeded(attributes = { clickpost_edd_clicked: 'true' }) {
+  if (localStorage.getItem('clickpost_edd_clicked') === 'true') {
+    const res = await fetch('/cart/update.js', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        attributes: attributes
+      })
+    })
+    const r = await res.json()
+    // console.log(r)
+  }
+}
+
+const trackAddToCart = () => {
+  const cartForms = document.querySelectorAll('form[action*="/cart/add"]');
+  cartForms.forEach(form => {
+    form.addEventListener("submit", () => {
+      const variantInput = form.querySelector('input[name="id"]');
+      const variantId = variantInput ? variantInput.value : null;
+      gaConfigIds.forEach(gaId => {
+        const a = gtagClickpost('event', 'add_to_cart_new', {
+          event_category: 'CLICK',
+          event_label: 'Add to cart',
+          shop_name: shopName,
+          send_to: gaId, shop_domain: clickpostShopDomain, product_title: productTitle
+        });
+      })
+      
+      if (sessionStorage.getItem('clickpost_edd_clicked') == "true") {
+        gaConfigIds.forEach(gaId => {
+          gtagClickpost('event', 'add_to_cart_conversion', {
+            event_category: 'CLICK',
+            event_label: 'Add to cart conversion',
+            shop_name: shopName,
+            send_to: gaId, shop_domain: clickpostShopDomain, product_title: productTitle
+          })
+        }); 
+      }
+    });
+  });
+}
+
+document.addEventListener("DOMContentLoaded", trackAddToCart);
