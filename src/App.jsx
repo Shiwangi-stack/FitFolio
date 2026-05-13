@@ -39,46 +39,46 @@ import Accessories from './Pages/Sub-Pages/Accessories';
 function App() {
   return (
     <>
-    <BrowserRouter>
+    <BrowserRouter basename="/FitFolio">
     <AuthProvider>
       <CartProvider>
     <Routes>
       <Route path='/' element={<Layout/>}>
-      <Route index element={<Home />} />
-      <Route path="/Login" element={<Login />} />
-      <Route path="/Contact" element={<Contact />} />
-      <Route path="/Women" element={<Women />} />
-      <Route path="/Men" element={<Men />} />
-      <Route path="/Blogs" element={<Blogs/>} />
-      <Route path="/blogdetail/:id" element={<BlogDetail/>} />
-      <Route path="/productdetail/:id" element={<ProductDetail/>} />
-      <Route path="/UserLogin" element={<UserLogin/>}/>
-      <Route path="/Profile" element={<Profile/>}/>
-      <Route path="/signup" element={<Signup/>}/>
-      <Route path="/CartPage/:userId" element={<CartPage/>}/>
-      <Route path="/Checkout/:userId" element={<Checkout/>}/>
-      <Route path="/ChangePassword" element={<ChangePassword/>}/>
-      <Route path="/MyOrders/:id" element={<MyOrders/>}/>
-      <Route path="/OrderDetails/:orderid" element={<OrderDetails/>}/>
-      <Route path="/Wishlist" element={<WishlistPage/>}/>
-      <Route path="/Kids" element={<Kids/>}/>
-      <Route path="/Cosmetics" element={<Cosmetics/>}/>
-      <Route path="/Accessories" element={<Accessories/>}/>
+      <Route index element={<Home/>} />
+      <Route path="Login" element={<Login/>} />
+      <Route path="Contact" element={<Contact/>} />
+      <Route path="Women" element={<Women/>} />
+      <Route path="Men" element={<Men/>} />
+      <Route path="Blogs" element={<Blogs/>} />
+      <Route path="blogdetail/:id" element={<BlogDetail/>} />
+      <Route path="productdetail/:id" element={<ProductDetail/>} />
+      <Route path="UserLogin" element={<UserLogin/>}/>
+      <Route path="Profile" element={<Profile/>}/>
+      <Route path="signup" element={<Signup/>}/>
+      <Route path="CartPage/:userId" element={<CartPage/>}/>
+      <Route path="Checkout/:userId" element={<Checkout/>}/>
+      <Route path="ChangePassword" element={<ChangePassword/>}/>
+      <Route path="MyOrders/:id" element={<MyOrders/>}/>
+      <Route path="OrderDetails/:orderid" element={<OrderDetails/>}/>
+      <Route path="Wishlist" element={<WishlistPage/>}/>
+      <Route path="Kids" element={<Kids/>}/>
+      <Route path="Cosmetics" element={<Cosmetics/>}/>
+      <Route path="Accessories" element={<Accessories/>}/>
       </Route>
 
 {/* Backend */}
 
-      <Route path="" element={<AdminLayout/>}>
-      <Route path="/dashboard" element={<Dashboard/>}/>
-      <Route path="/feedback" element={<Feedback/>}/>
-      <Route path="/addblog" element={<AddBlog/>}/>
-      <Route path="/viewblog" element={<ViewBlog/>}/>
-      <Route path="/addcategory" element={<AddCategory/>}/>
-      <Route path="/viewcategory" element={<ViewCategory/>}/>
-      <Route path="/addproduct" element={<AddProduct/>}/>
-      <Route path="/viewproduct" element={<ViewProduct/>}/>
-       <Route path="/AdminOrder" element={<AdminOrder/>}/>
-      <Route path="/AdminOrderDetails/:orderId" element={<AdminOrderDetail/>}/>
+      <Route path="/" element={<AdminLayout/>}>
+      <Route path="dashboard" element={<Dashboard/>}/>
+      <Route path="feedback" element={<Feedback/>}/>
+      <Route path="addblog" element={<AddBlog/>}/>
+      <Route path="viewblog" element={<ViewBlog/>}/>
+      <Route path="addcategory" element={<AddCategory/>}/>
+      <Route path="viewcategory" element={<ViewCategory/>}/>
+      <Route path="addproduct" element={<AddProduct/>}/>
+      <Route path="viewproduct" element={<ViewProduct/>}/>
+       <Route path="AdminOrder" element={<AdminOrder/>}/>
+      <Route path="AdminOrderDetails/:orderId" element={<AdminOrderDetail/>}/>
       </Route>
 
     </Routes>

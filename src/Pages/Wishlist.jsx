@@ -7,7 +7,7 @@ export default function WishlistPage() {
   useEffect(() => {
   if (!user) return;
 
-  fetch(`http://localhost:5000/api/wishlist/${user._id}`)
+  fetch(`https://fitfolio-9u7p.onrender.com/api/wishlist/${user._id}`)
     .then(res => res.json())
     .then(data => {
       const exists = data.find(

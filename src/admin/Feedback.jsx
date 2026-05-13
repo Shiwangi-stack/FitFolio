@@ -8,7 +8,7 @@ export default function Feedback()
 {
     const [items, setitems]=useState([])
         useEffect(()=>{
-            fetch("http://localhost:5000/api/getfeedback")
+            fetch("https://fitfolio-9u7p.onrender.com/api/getfeedback")
             .then(response=>response.json())
             .then(data=>setitems(data))
             .catch(err=>console.log(err))

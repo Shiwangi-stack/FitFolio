@@ -8,7 +8,7 @@
 // const [filteredItems, setFilteredItems] = useState([])
 
 // useEffect(() => {
-//   fetch("http://localhost:5000/api/getproduct")
+//   fetch("https://fitfolio-9u7p.onrender.com/api/getproduct")
 //     .then(response => response.json())
 //     .then(data => {
 //       setitems(data)
@@ -296,7 +296,7 @@ export default function Women() {
   const perPage = 6;
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/getproduct")
+    fetch("https://fitfolio-9u7p.onrender.com/api/getproduct")
       .then((response) => response.json())
       .then((data) => {
         setitems(data);

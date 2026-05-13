@@ -12,7 +12,7 @@ export default function ViewCategory()
 {
 const [items, setitems]=useState([])
     useEffect(()=>{
-        fetch("http://localhost:5000/api/getcategory")
+        fetch("https://fitfolio-9u7p.onrender.com/api/getcategory")
         .then(response=>response.json())
         .then(data=>setitems(data))
         .catch(err=>console.log(err))
@@ -34,7 +34,7 @@ useEffect(()=>{
         if(!window.confirm("Are you sure to delete ?"))
             return
         try{
-            const response=await fetch("http://localhost:5000/api/deletecategory/"+categoryid,{
+            const response=await fetch("https://fitfolio-9u7p.onrender.com/api/deletecategory/"+categoryid,{
                 method:"delete"
             })
             if (response.ok)
@@ -124,7 +124,7 @@ const handleSubmit=async (e)=>
         
         try{
 
-          const response=await fetch("http://localhost:5000/api/updatecategory/"+editid,{
+          const response=await fetch("https://fitfolio-9u7p.onrender.com/api/updatecategory/"+editid,{
             headers:{'Content-Type':'application/json'},
             method:"PUT",
             body:JSON.stringify(formdata)

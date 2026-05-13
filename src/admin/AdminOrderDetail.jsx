@@ -11,7 +11,7 @@ const AdminOrderDetail = () => {
   useEffect(() => {
     const fetchOrderDetails = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/adminorderdetails/${orderId}`);
+        const res = await fetch(`https://fitfolio-9u7p.onrender.com/api/adminorderdetails/${orderId}`);
         const data = await res.json();
         setOrder(data);
         setLoading(false);
@@ -26,7 +26,7 @@ const AdminOrderDetail = () => {
 
   const updateOrderStatus = async (status) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/updateorderstatus/${orderId}`, {
+      const res = await fetch(`https://fitfolio-9u7p.onrender.com/api/updateorderstatus/${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),

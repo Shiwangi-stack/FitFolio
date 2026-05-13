@@ -12,7 +12,7 @@
 //   const handleSubmit = async (e) => {
 //     e.preventDefault();
 //     try {
-//       const res = await fetch('http://localhost:5000/api/insertUserlogin', {
+//       const res = await fetch('https://fitfolio-9u7p.onrender.com/api/insertUserlogin', {
 //         method: 'POST',
 //         headers: { 'Content-Type': 'application/json' },
 //         body: JSON.stringify(formData),
@@ -91,7 +91,7 @@ const UserLogin = () => {
     e.preventDefault();
 
     try {
-      const res = await fetch("http://localhost:5000/api/insertUserlogin", {
+      const res = await fetch("https://fitfolio-9u7p.onrender.com/api/insertUserlogin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),

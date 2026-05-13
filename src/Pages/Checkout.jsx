@@ -31,7 +31,7 @@
 
 //     console.log(JSON.stringify({ userId, items, shippingAddress: address, totalAmount }))
 //     // Step 1: Create Order
-//   const orderRes = await fetch('http://localhost:5000/api/placeorder', {
+//   const orderRes = await fetch('https://fitfolio-9u7p.onrender.com/api/placeorder', {
 //     method: 'POST',
 //     headers: { 'Content-Type': 'application/json' },
 //     body: JSON.stringify({ userId, items, shippingAddress: address, totalAmount })
@@ -50,7 +50,7 @@
 //         // Payment successful
 
 //         // Step 3: Update backend with payment success
-//         const sellingpriceRes = await fetch(`http://localhost:5000/api/updatepayment/${orderData._id}`, {
+//         const sellingpriceRes = await fetch(`https://fitfolio-9u7p.onrender.com/api/updatepayment/${orderData._id}`, {
 //           method: 'PUT',
 //           headers: { 'Content-Type': 'application/json' },
 //           body: JSON.stringify({
@@ -170,7 +170,7 @@ const Checkout = () => {
     }));
 
     try {
-      const orderRes = await fetch('http://localhost:5000/api/placeorder', {
+      const orderRes = await fetch('https://fitfolio-9u7p.onrender.com/api/placeorder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, items, shippingAddress: address, totalAmount })
@@ -190,7 +190,7 @@ const Checkout = () => {
 
         handler: async function (response) {
           const res = await fetch(
-            `http://localhost:5000/api/updatepayment/${orderData._id}`,
+            `https://fitfolio-9u7p.onrender.com/api/updatepayment/${orderData._id}`,
             {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },

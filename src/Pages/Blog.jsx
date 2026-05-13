@@ -4,7 +4,7 @@
 // {
 //     const[items, setitems]= useState([])
 //     useEffect(()=>{
-//         fetch("http://localhost:5000/api/getblog")
+//         fetch("https://fitfolio-9u7p.onrender.com/api/getblog")
 //         .then(response=>response.json())
 //         .then(data=>setitems(data))
 //         .catch(err=>console.log(err))
@@ -40,7 +40,7 @@ export default function Blog() {
   const [items, setitems] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/getblog")
+    fetch("https://fitfolio-9u7p.onrender.com/api/getblog")
       .then((response) => response.json())
       .then((data) => setitems(data))
       .catch((err) => console.log(err));

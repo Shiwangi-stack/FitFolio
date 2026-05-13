@@ -12,7 +12,7 @@ export default function ViewProduct()
 {
 const [items, setitems]=useState([])
     useEffect(()=>{
-        fetch("http://localhost:5000/api/getproduct")
+        fetch("https://fitfolio-9u7p.onrender.com/api/getproduct")
         .then(response=>response.json())
         .then(data=>setitems(data))
         .catch(err=>console.log(err))
@@ -34,7 +34,7 @@ useEffect(()=>{
         if(!window.confirm("Are you sure to delete ?"))
             return
         try{
-            const response=await fetch("http://localhost:5000/api/deleteproduct/"+productid,{
+            const response=await fetch("https://fitfolio-9u7p.onrender.com/api/deleteproduct/"+productid,{
                 method:"delete"
             })
             if (response.ok)
@@ -143,7 +143,7 @@ const handleSubmit=async (e)=>
         
         try{
 
-          const response=await fetch("http://localhost:5000/api/updateproduct/"+editid,{
+          const response=await fetch("https://fitfolio-9u7p.onrender.com/api/updateproduct/"+editid,{
             headers:{'Content-Type':'application/json'},
             method:"PUT",
             body:JSON.stringify(formdata)

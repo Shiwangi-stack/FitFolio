@@ -70,7 +70,7 @@ const handlephoto=async (e)=>{
         
         try{
 
-          const response=await fetch("http://localhost:5000/api/insertblog",{
+          const response=await fetch("https://fitfolio-9u7p.onrender.com/api/insertblog",{
             headers:{'Content-Type':'application/json'},
             method:"POST",
             body:JSON.stringify(formdata)

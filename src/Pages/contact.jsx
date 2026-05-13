@@ -30,7 +30,7 @@
 //     console.log(formdata)
 
 //     try{
-//     const response=await fetch("http://localhost:5000/api/insertcontact",{
+//     const response=await fetch("https://fitfolio-9u7p.onrender.com/api/insertcontact",{
 //     headers:{"Content-Type":"application/json"},
 //     method:"POST",
 //     body:JSON.stringify(formdata)
@@ -134,7 +134,7 @@ export default function Contact() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/insertcontact",
+        "https://fitfolio-9u7p.onrender.com/api/insertcontact",
         {
           headers: { "Content-Type": "application/json" },
           method: "POST",

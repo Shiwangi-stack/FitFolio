@@ -11,7 +11,7 @@
 // // })
 
 // // useEffect(()=>{
-// //     fetch("http://localhost:5000/api/getcount")
+// //     fetch("https://fitfolio-9u7p.onrender.com/api/getcount")
 // //     .then(response=>response.json(
 
 // //     ))
@@ -108,7 +108,7 @@
 //   });
 
 //   useEffect(() => {
-//     fetch("http://localhost:5000/api/getcount")
+//     fetch("https://fitfolio-9u7p.onrender.com/api/getcount")
 //       .then(res => res.json())
 //       .then(data => setCounts(data))
 //       .catch(err => console.log(err));
@@ -215,7 +215,7 @@ export default function Dashboard() {
   });
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/getcount")
+    fetch("https://fitfolio-9u7p.onrender.com/api/getcount")
       .then(res => res.json())
       .then(data => setCounts(data))
       .catch(err => console.log(err));

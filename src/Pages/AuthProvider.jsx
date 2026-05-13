@@ -11,7 +11,7 @@
 
 //     const loginAction=async(data)=>{
 //         try{
-//             const response=await fetch("http://localhost:5000/api/login",{
+//             const response=await fetch("https://fitfolio-9u7p.onrender.com/api/login",{
 //                 method:"post",
 //                 headers: {
 //                     "Content-type":"application/json",
@@ -76,7 +76,7 @@ export default function AuthProvider({ children }) {
 
   const loginAction = async (data) => {
     try {
-      const response = await fetch("http://localhost:5000/api/login", {
+      const response = await fetch("https://fitfolio-9u7p.onrender.com/api/login", {
         method: "post",
         headers: {
           "Content-type": "application/json",

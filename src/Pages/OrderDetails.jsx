@@ -8,7 +8,7 @@ const OrderDetails = () => {
 
   useEffect(() => {
     const fetchOrder = async () => {
-      const res = await fetch(`http://localhost:5000/api/orderdetails/${orderid}`);
+      const res = await fetch(`https://fitfolio-9u7p.onrender.com/api/orderdetails/${orderid}`);
       const data = await res.json();
       setOrder(data);
     };

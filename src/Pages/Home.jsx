@@ -90,7 +90,7 @@
 // const [kids, setKids] = useState([]);
 
 //   useEffect(() => {
-//   fetch("http://localhost:5000/api/getproduct")
+//   fetch("https://fitfolio-9u7p.onrender.com/api/getproduct")
 //     .then(res => res.json())
 //     .then(data => {
 //       setMen(data.filter(i => i.gender === "Male"));
@@ -416,7 +416,7 @@
 //   const [activeTab, setActiveTab] = useState("all");
 
 //   useEffect(() => {
-//     fetch("http://localhost:5000/api/getproduct")
+//     fetch("https://fitfolio-9u7p.onrender.com/api/getproduct")
 //       .then((res) => res.json())
 //       .then((data) => setProducts(data))
 //       .catch((err) => console.log(err));
@@ -691,7 +691,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/getproduct")
+    fetch("https://fitfolio-9u7p.onrender.com/api/getproduct")
       .then((res) => res.json())
       .then((data) => setProducts(data))
       .catch((err) => console.log(err));

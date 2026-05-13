@@ -8,7 +8,7 @@ export default function WishlistButton({ productId }) {
   useEffect(() => {
     if (!user) return;
 
-    fetch(`http://localhost:5000/api/wishlist/${user._id}`)
+    fetch(`https://fitfolio-9u7p.onrender.com/api/wishlist/${user._id}`)
       .then(res => res.json())
       .then(data => {
         const exists = data.find(
@@ -26,7 +26,7 @@ export default function WishlistButton({ productId }) {
     }
 
     try {
-      const res = await fetch("http://localhost:5000/api/wishlist/toggle", {
+      const res = await fetch("https://fitfolio-9u7p.onrender.com/api/wishlist/toggle", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

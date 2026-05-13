@@ -9,7 +9,7 @@
 
 //     const [item, setitem]=useState()
 //     useEffect(()=>{
-//         fetch("http://localhost:5000/api/getblogbyid/"+id)
+//         fetch("https://fitfolio-9u7p.onrender.com/api/getblogbyid/"+id)
 //         .then(response=>response.json())
 //         .then(data=>setitem(data))
 //         .catch(err=>console.log(err))
@@ -46,7 +46,7 @@ export default function BlogDetail() {
   const [item, setitem] = useState();
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/getblogbyid/" + id)
+    fetch("https://fitfolio-9u7p.onrender.com/api/getblogbyid/" + id)
       .then((response) => response.json())
       .then((data) => setitem(data))
       .catch((err) => console.log(err));

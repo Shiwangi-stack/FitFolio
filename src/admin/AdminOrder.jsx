@@ -12,7 +12,7 @@ const AdminOrder = () => {
   }, []);
 
   const fetchOrders = async () => {
-    const res = await fetch('http://localhost:5000/api/allorders');
+    const res = await fetch('https://fitfolio-9u7p.onrender.com/api/allorders');
     const data = await res.json();
     setOrders(data);
     setFilteredOrders(data);

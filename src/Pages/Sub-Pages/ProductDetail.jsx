@@ -12,7 +12,7 @@
 //    const { addToCart }= useContext(CartContext);
 
 //   useEffect(() => {
-//     fetch("http://localhost:5000/api/getproductbyid/" + id)
+//     fetch("https://fitfolio-9u7p.onrender.com/api/getproductbyid/" + id)
 //       .then(res => res.json())
 //       .then(data => {
 //         setItem(data);
@@ -92,7 +92,7 @@ export default function ProductDetail() {
   const { addToCart } = useContext(CartContext);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/getproductbyid/" + id)
+    fetch("https://fitfolio-9u7p.onrender.com/api/getproductbyid/" + id)
       .then((res) => res.json())
       .then((data) => {
         setItem(data);

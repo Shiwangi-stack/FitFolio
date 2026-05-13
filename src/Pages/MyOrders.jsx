@@ -7,7 +7,7 @@
 
 //   useEffect(() => {
 //     const fetchOrders = async () => {
-//       const res = await fetch(`http://localhost:5000/api/myorders/${id}`);
+//       const res = await fetch(`https://fitfolio-9u7p.onrender.com/api/myorders/${id}`);
 //       const data = await res.json();
 //       setOrders(data);
 //     };
@@ -51,7 +51,7 @@ const MyOrders = () => {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      const res = await fetch(`http://localhost:5000/api/myorders/${id}`);
+      const res = await fetch(`https://fitfolio-9u7p.onrender.com/api/myorders/${id}`);
       const data = await res.json();
       setOrders(data);
     };
