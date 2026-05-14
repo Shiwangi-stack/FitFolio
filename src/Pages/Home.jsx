@@ -571,6 +571,8 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 
+const backendURL = "https://fitfolio-9u7p.onrender.com";
+
 /* ================= PRODUCT CARD ================= */
 function ProductDiv({ item }) {
   return (
@@ -578,9 +580,11 @@ function ProductDiv({ item }) {
       <div className="card border-0 shadow-sm product-card">
         <div className="overflow-hidden">
           <img
-            src={item?.photo1 || "images/Buttons Tweed Blazer11.webp"}
-            className="card-img-top product-img"
-            alt=""
+            src={
+  item?.photo1
+    ? `${backendURL}/images/${item.photo1}`
+    : `${backendURL}/images/Buttons Tweed Blazer11.webp`
+}
           />
         </div>
 
@@ -609,7 +613,7 @@ function HomeDiv(props) {
         <div
           className="premium-category-card"
           style={{
-            backgroundImage: `url(./images/${props.bg})`,
+            backgroundImage: `url(${backendURL}/images/${props.bg})`,
           }}
         >
 
@@ -654,7 +658,7 @@ function TrendDiv() {
 
       {[1, 2, 3].map((i) => (
         <div className="d-flex mb-3 trend-card" key={i}>
-          <img src="images/bag.jpg" width="90" className="rounded" />
+          <img src={`${backendURL}/images/bag.jpg`} width="90" className="rounded" />
           <div className="ms-3">
             <h6>Chain bucket bag</h6>
             <div className="text-warning small">★★★★★</div>
@@ -674,7 +678,7 @@ function ImageDiv(props) {
       <div className="gallery-card">
 
         <img
-          src={`images/${props.photo}`}
+          src={`${backendURL}/images/${props.photo}`}
           className="gallery-img"
           alt=""
         />
@@ -738,7 +742,7 @@ export default function Home() {
   <div
     className="premium-hero-banner"
     style={{
-      backgroundImage: `url(images/1.jpg)`
+      backgroundImage: `url(${backendURL}/images/1.jpg)`
     }}
   >
 
@@ -902,7 +906,7 @@ export default function Home() {
         {/* ================= DISCOUNT ================= */}
         <div className="row mt-5 p-5">
           <div className="col-lg-6 p-0">
-            <img src="images/12.jpg" width="100%" />
+            <img src={`${backendURL}/images/12.jpg`} width="100%" />
           </div>
           <div className="col-lg-6 bg-secondary-subtle p-5">
             <h5>Discount</h5>

@@ -2,7 +2,7 @@ const express=require('express')
 const cors=require('cors')
 const mongoose=require('mongoose')
 
-require('dotenv').config()
+
 
 const app=express()
 app.use("/images", express.static("public/images"));
@@ -12,7 +12,10 @@ app.use(express.json())
 
 const PORT=process.env.PORT || 5000
 
-mongoose.connect(process.env.MONGO_URI,{
+require('dotenv').config()
+
+
+mongoose.connect(process.env.MONGOURI,{
     dbName:"dbshop"
 })
 .then(()=> console.log("connected to mongodb"))
